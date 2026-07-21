@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>TypingShooter</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#14102b;overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none;
+    font-family:'Hiragino Maru Gothic ProN','BIZ UDPGothic','Meiryo',system-ui,sans-serif;}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
+  #box{position:relative;}
+  #cv{display:block;background:#000;border-radius:10px;box-shadow:0 10px 50px rgba(0,0,0,.7);}
+  .ov{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    color:#fff;text-align:center;background:rgba(16,10,40,.82);border-radius:10px;backdrop-filter:blur(3px);z-index:5;}
+  .ov.show{display:flex;}
+  .logo{font-size:min(9vw,64px);font-weight:900;letter-spacing:2px;line-height:1.05;
+    background:linear-gradient(180deg,#ffe259,#ffa751 55%,#ff5e62);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 4px 0 rgba(0,0,0,.45));transform:rotate(-2deg);}
+  .sub{color:#cdbfff;font-size:14px;margin-top:-6px;}
+  .btn{cursor:pointer;border:none;border-radius:999px;padding:13px 34px;font-size:19px;font-weight:800;color:#3a1d00;
+    background:linear-gradient(180deg,#ffe259,#ffa751);box-shadow:0 5px 0 #b06a1f,0 8px 14px rgba(0,0,0,.4);
+    font-family:inherit;transition:transform .06s;}
+  .btn:active{transform:translateY(4px);box-shadow:0 1px 0 #b06a1f;}
+  .btn.blue{background:linear-gradient(180deg,#7ee8fa,#59a9ff);box-shadow:0 5px 0 #2a5fa8,0 8px 14px rgba(0,0,0,.4);color:#00234d;}
+  .btn.blue:active{box-shadow:0 1px 0 #2a5fa8;}
+  .btn.small{padding:8px 20px;font-size:15px;}
+  .togrow{display:flex;align-items:center;gap:8px;font-size:14px;color:#bfb3e8;}
+  .tog{cursor:pointer;border:2px solid #6a5acd;background:transparent;color:#bfb3e8;border-radius:999px;
+    padding:6px 16px;font-size:14px;font-weight:700;font-family:inherit;}
+  .tog.sel{background:#6a5acd;color:#fff;box-shadow:0 0 12px rgba(122,90,248,.8);}
+  .stgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+  .stbtn{cursor:pointer;width:64px;height:64px;border-radius:14px;border:none;font-size:22px;font-weight:900;font-family:inherit;
+    color:#3a1d00;background:linear-gradient(180deg,#ffe259,#ffa751);box-shadow:0 4px 0 #b06a1f;}
+  .stbtn:active{transform:translateY(3px);box-shadow:0 1px 0 #b06a1f;}
+  .stbtn.lock{background:#3d3560;color:#7a6fa8;box-shadow:0 4px 0 #241f3d;cursor:default;}
+  .stats{background:rgba(0,0,0,.35);border-radius:14px;padding:14px 30px;font-size:17px;line-height:1.9;min-width:250px;}
+  .stats b{color:#ffe259;}
+  .rank{font-size:64px;font-weight:900;line-height:1;filter:drop-shadow(0 3px 0 rgba(0,0,0,.5));}
+  .btnrow{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+  h2.head{font-size:min(8vw,44px);margin:0;font-weight:900;
+    background:linear-gradient(180deg,#fff,#ffd28a);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 3px 0 rgba(0,0,0,.5));}
+  h2.head.bad{background:linear-gradient(180deg,#ff9a9e,#ff2e63);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  #hin{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:60%;height:30px;opacity:.01;border:none;font-size:16px;z-index:8;pointer-events:none;}
+  .hint{font-size:12px;color:#8f84bd;}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="box">
+  <canvas id="cv" width="960" height="540"></canvas>
+
+  <div class="ov show" id="ovTitle">
+    <div class="logo">Typing<br>Shooter</div>
+    <div class="sub">タイピングで てきを うちまくれ！</div>
+    <div class="togrow">ことば：
+      <button class="tog sel" id="tgJp">日本語(ローマ字)</button>
+      <button class="tog" id="tgEn">English</button>
+    </div>
+    <div class="togrow" id="imRow" style="display:none">スマホ入力：
+      <button class="tog sel" id="tgRoma">英字タイピング</button>
+      <button class="tog" id="tgKana">日本語(かな)入力</button>
+    </div>
+    <div style="height:4px"></div>
+    <button class="btn" id="btStage">ステージモード</button>
+    <button class="btn blue" id="btEndless">エンドレスモード</button>
+    <button class="btn blue small" id="btHelp">🎮 そうさほうほう</button>
+    <div class="hint">PC：[D]/[F]でマーカーいどう → [Space]でロックオン → タイピング！</div>
+  </div>
+
+  <div class="ov" id="ovHelp">
+    <h2 class="head">そうさほうほう</h2>
+    <div class="stats" style="text-align:left;font-size:14px;line-height:1.75;max-width:560px">
+      <b>🖥 PC(キーボード)</b><br>
+      　[D] / [F] … マーカーいどう(D=まえ / F=つぎ、Tabでもいどう)<br>
+      　白い点線リング＝マーカーちゅう / 赤い実線リング＝ロックオンちゅう<br>
+      　[Space] … ロックオン / かいじょ<br>
+      　ロックちゅうに おだいをタイピングでしゃげき！<br>
+      　マウスクリックでもロックオンできるよ<br>
+      　[Esc] タイトルへもどる<br>
+      　※えいごの文のとちゅうのスペースは、そのままにゅうりょくになる<br>
+      <br>
+      <b>📱 スマホ</b><br>
+      　てきをタップでロックオンして、そのままにゅうりょく<br>
+      　タイトルで「えいじタイピング / かなにゅうりょく」をえらべる<br>
+      <br>
+      <b>💡 ルール</b><br>
+      　おだいの下のゲージが0になると てきがこうげき！<br>
+      　ハートが3つへったらゲームオーバー<br>
+      　れんぞくですばやくうつと「ダン→ダンダン→ダンダンダン!!」とれんしゃがはげしくなる！
+    </div>
+    <button class="btn small" id="btHelpClose">とじる</button>
+  </div>
+
+  <div class="ov" id="ovStage">
+    <h2 class="head">ステージをえらぶ</h2>
+    <div class="stgrid" id="stGrid"></div>
+    <button class="btn small blue" id="btBack1">← タイトルへ</button>
+  </div>
+
+  <div class="ov" id="ovResult"></div>
+  <div class="ov" id="ovOver"></div>
+
+  <input id="hin" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="typing input">
+</div></div>
+<script>
+'use strict';
+/* ================= TypingShooter =================
+   単一ファイル・外部素材なし。描画:Canvas / 音:Web Audio
+================================================== */
+
+// ---------- ローマ字変換エンジン ----------
+const KANA = {
+  'あ':['a'],'い':['i'],'う':['u','wu','whu'],'え':['e'],'お':['o'],
+  'か':['ka','ca'],'き':['ki'],'く':['ku','cu','qu'],'け':['ke'],'こ':['ko','co'],
+  'さ':['sa'],'し':['si','shi','ci'],'す':['su'],'せ':['se','ce'],'そ':['so'],
+  'た':['ta'],'ち':['ti','chi'],'つ':['tu','tsu'],'て':['te'],'と':['to'],
+  'な':['na'],'に':['ni'],'ぬ':['nu'],'ね':['ne'],'の':['no'],
+  'は':['ha'],'ひ':['hi'],'ふ':['fu','hu'],'へ':['he'],'ほ':['ho'],
+  'ま':['ma'],'み':['mi'],'む':['mu'],'め':['me'],'も':['mo'],
+  'や':['ya'],'ゆ':['yu'],'よ':['yo'],
+  'ら':['ra'],'り':['ri'],'る':['ru'],'れ':['re'],'ろ':['ro'],
+  'わ':['wa'],'を':['wo'],
+  'が':['ga'],'ぎ':['gi'],'ぐ':['gu'],'げ':['ge'],'ご':['go'],
+  'ざ':['za'],'じ':['zi','ji'],'ず':['zu'],'ぜ':['ze'],'ぞ':['zo'],
+  'だ':['da'],'ぢ':['di'],'づ':['du'],'で':['de'],'ど':['do'],
+  'ば':['ba'],'び':['bi'],'ぶ':['bu'],'べ':['be'],'ぼ':['bo'],
+  'ぱ':['pa'],'ぴ':['pi'],'ぷ':['pu'],'ぺ':['pe'],'ぽ':['po'],
+  'ぁ':['la','xa'],'ぃ':['li','xi'],'ぅ':['lu','xu'],'ぇ':['le','xe'],'ぉ':['lo','xo'],
+  'ゃ':['lya','xya'],'ゅ':['lyu','xyu'],'ょ':['lyo','xyo'],
+};
+const YOUON = {
+  'きゃ':['kya'],'きゅ':['kyu'],'きょ':['kyo'],
+  'しゃ':['sya','sha'],'しゅ':['syu','shu'],'しょ':['syo','sho'],
+  'ちゃ':['tya','cha','cya'],'ちゅ':['tyu','chu','cyu'],'ちょ':['tyo','cho','cyo'],
+  'にゃ':['nya'],'にゅ':['nyu'],'にょ':['nyo'],
+  'ひゃ':['hya'],'ひゅ':['hyu'],'ひょ':['hyo'],
+  'みゃ':['mya'],'みゅ':['myu'],'みょ':['myo'],
+  'りゃ':['rya'],'りゅ':['ryu'],'りょ':['ryo'],
+  'ぎゃ':['gya'],'ぎゅ':['gyu'],'ぎょ':['gyo'],
+  'じゃ':['zya','ja','jya'],'じゅ':['zyu','ju','jyu'],'じょ':['zyo','jo','jyo'],
+  'びゃ':['bya'],'びゅ':['byu'],'びょ':['byo'],
+  'ぴゃ':['pya'],'ぴゅ':['pyu'],'ぴょ':['pyo'],
+  'ふぁ':['fa'],'ふぃ':['fi'],'ふぇ':['fe'],'ふぉ':['fo'],
+  'てぃ':['thi'],'でぃ':['dhi'],
+};
+const SMALLS = 'ゃゅょぁぃぅぇぉ';
+
+function tokenize(word){
+  const toks = [];
+  let i = 0;
+  while(i < word.length){
+    const c = word[i];
+    if(c === 'っ'){ toks.push({kana:'っ', sokuon:true}); i++; continue; }
+    if(c === 'ん'){ toks.push({kana:'ん', hatsuon:true}); i++; continue; }
+    const nx = word[i+1];
+    if(nx && SMALLS.includes(nx)){
+      const two = c + nx;
+      let opts = YOUON[two] ? YOUON[two].slice() : [];
+      const b = KANA[c], s = KANA[nx];
+      if(b && s){ for(const x of b) for(const y of s) opts.push(x + y); }
+      if(!opts.length) opts = [two];
+      toks.push({kana:two, opts}); i += 2; continue;
+    }
+    const b = KANA[c];
+    toks.push({kana:c, opts: b ? b.slice() : [c.toLowerCase()]});
+    i++;
+  }
+  for(let j = 0; j < toks.length; j++){
+    const t = toks[j], nxt = toks[j+1];
+    if(t.sokuon){
+      let opts = [];
+      if(nxt && nxt.opts){
+        const cs = new Set();
+        for(const o of nxt.opts){ const f = o[0]; if(!'aiueon'.includes(f)) cs.add(f); }
+        opts = [...cs];
+      }
+      opts.push('ltu','xtu','ltsu');
+      t.opts = opts; delete t.sokuon;
+    }else if(t.hatsuon){
+      let opts = ['nn','xn'];
+      if(nxt && nxt.opts && !nxt.opts.some(o => 'aiueoyn'.includes(o[0]))) opts.push('n');
+      t.opts = opts; delete t.hatsuon;
+    }
+  }
+  // 促音の後のトークン解決のため、促音を後で処理し直す(次がん等のケース)
+  return toks;
+}
+
+class RomaTyper{
+  constructor(word){ this.word = word; this.toks = tokenize(word); this.idx = 0; this.buf = ''; this.typed = ''; }
+  done(){ return this.idx >= this.toks.length; }
+  progress(){ if(this.done()) return 1; return (this.idx + (this.buf ? .5 : 0)) / this.toks.length; }
+  type(ch){
+    while(this.idx < this.toks.length){
+      const opts = this.toks[this.idx].opts;
+      const nb = this.buf + ch;
+      if(opts.some(o => o.startsWith(nb))){
+        const complete = opts.includes(nb) && !opts.some(o => o !== nb && o.startsWith(nb));
+        if(complete){ this.idx++; this.buf = ''; } else { this.buf = nb; }
+        this.typed += ch;
+        return true;
+      }
+      if(this.buf && opts.includes(this.buf)){ this.idx++; this.buf = ''; continue; }
+      return false;
+    }
+    return false;
+  }
+  remain(){
+    let s = '';
+    for(let j = this.idx; j < this.toks.length; j++){
+      const opts = this.toks[j].opts;
+      if(j === this.idx && this.buf){
+        const o = opts.find(o => o.startsWith(this.buf)) || opts[0];
+        s += o.slice(this.buf.length);
+      }else s += opts[0];
+    }
+    return s;
+  }
+  full(){ return this.typed + this.remain(); }
+  kanaProgress(){ return Math.floor(this.progress() * this.word.length); }
+}
+class PlainTyper{ // 英語モード / かな直接入力モード
+  constructor(word){ this.word = word; this.idx = 0; this.typed = ''; }
+  done(){ return this.idx >= this.word.length; }
+  progress(){ return this.idx / this.word.length; }
+  type(ch){
+    let target = this.word[this.idx];
+    if(target === undefined) return false;
+    if(target.toLowerCase() === ch.toLowerCase()){ this.idx++; this.typed += target; return true; }
+    return false;
+  }
+  remain(){ return this.word.slice(this.idx); }
+  full(){ return this.word; }
+  kanaProgress(){ return this.idx; }
+}
+function makeTyper(word){
+  if(G.lang === 'en' || G.kanaMode) return new PlainTyper(word);
+  return new RomaTyper(word);
+}
+function kataToHira(s){
+  return s.replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+}
+
+// ---------- ことばデータ ----------
+const WORDS_JP = [
+  // Lv1: みじかい(1〜3かな)
+  ['て','め','き','は','ひ','ゆ','ねこ','いぬ','うみ','そら','つき','ほし','はな','やま','かわ','ゆき','あめ','かぜ','もり','とり','くま','うた','ふゆ','なつ','はる','あき','みず','ひかり',
+   'ほん','えき','いす','つくえ','かさ','くつ','にわ','たまご','みかん','ぶどう','もも','かに','えび','いか','たこ','よる','あさ','ゆめ','こえ','いろ','かみ','みみ','くち','あし','ゆび',
+   'ちず','ふね','くさ','はし','にじ','かがみ','さくら','うし','うま','ひつじ','むし','はち','あり','せみ','かめ','へび','わに','りす','ねずみ','こめ','みそ','のり','おちゃ','ゆか','まど'],
+  // Lv2: ふつう(3〜5かな)
+  ['さかな','りんご','たいこ','すいか','めがね','とけい','でんわ','くじら','かえる','うさぎ','きつね','たぬき','ぱんだ','おかし','にんじゃ','さむらい','まほう','ゆうしゃ','おんがく','こうえん','でんしゃ','ろぼっと','ばなな','ちきゅう',
+   'おべんとう','たんぽぽ','ひまわり','かたつむり','はりねずみ','ぺんぎん','こあら','きりん','かばん','えんぴつ','けしごむ','じてんしゃ','しんごう','やきそば','ぎょうざ','からあげ','おすし','ぷりん','いちご','おんせん',
+   'でんき','てがみ','はがき','きって','さいふ','まくら','ふとん','たおる','ちゃわん','おはし','こっぷ','ゆうやけ','かみなり','ながぐつ','てぶくろ','ぼうし','めいろ','なぞなぞ','おりがみ','けんだま',
+   'しゃぼんだま','きゃべつ','きゅうり','にんじん','たまねぎ','だいこん','かぼちゃ','こおろぎ','すずむし','ふうせん'],
+  // Lv3: ながい(5〜8かな)
+  ['しんかんせん','ぼうけんしゃ','まほうつかい','ひこうきぐも','てんきよほう','たからばこ','ゆうえんち','しょうぼうしゃ','きょうりゅう','かみなりさま','おまつりばやし','はなびたいかい','だいぼうけん','ちょうとっきゅう','うちゅうりょこう',
+   'せんぷうき','れいぞうこ','せんたくき','でんしれんじ','とうもろこし','さつまいも','じゃがいも','ほうれんそう','すいぞくかん','どうぶつえん','びじゅつかん','はくぶつかん','ゆうびんきょく','けいさつしょ','しょうてんがい',
+   'じどうはんばいき','かんらんしゃ','おばけやしき','ぼうえんきょう','けんびきょう','きゅうきゅうしゃ','たんじょうび','くりすます','おしょうがつ','なつやすみ','ふゆやすみ','うんどうかい','ぶんかさい','えんそく',
+   'しゅうがくりょこう','かいすいよく','やまのぼり','ほしぞらかんさつ','むしとりあみ','ひみつきち'],
+  // Lv4: ぶんしょう
+  ['きょうもいちにちがんばろう','ねこがひなたぼっこをする','たいふうがせっきんちゅうです','あしたはきっとはれるかな','ゆうしゃはでんせつのつるぎをぬいた','まちのひろばでまつりがはじまる',
+   'あめのちはれのちくもり','でんしゃがえきにとうちゃくした','ことしのなつはとてもあつい','ほんをよむのがだいすきだ','ともだちとこうえんであそぶ','おなかがすいたのでごはんにしよう',
+   'きらきらひかるよぞらのほし','ふゆのあさはふとんからでられない','あたらしいくつをかってもらった','にちようびはかぞくででかけよう','ぴかぴかのいちねんせいになった','そらいっぱいのにじがかかった'],
+];
+const BOSS_JP = [
+  'おまえのじつりょくをみせてみろ','このいちげきをうけてみよ','まだまだほんきではないぞ',
+  'ひかりのはやさでうちこめるかな','さいごのたたかいがはじまるぞ','たいぴんぐのちからでせかいをすくえ',
+  'わがひっさつのれんだをくらえ','ゆびさきのまほうをみせてやろう','これでおわりだとおもうなよ',
+  'きさまのゆびはもううごくまい','わがやみのちからをとくとみよ','このよのすべてはわたしのものだ',
+  'ほろびのうたをきかせてやろう','にげるならいまのうちだぞ','ふるえてねむれにんげんよ',
+  'せんねんのねむりからめざめたぞ','わたしをたおせるものなどいない','じごくのそこまでつきあってもらおう',
+];
+const WORDS_EN = [
+  // Lv1: short
+  ['a','t','k','cat','dog','sun','run','red','fox','egg','ice','joy','key','map','owl','pig','zip','bee','cup','hat','sky','sea',
+   'ant','arm','bat','bed','box','bus','car','cow','day','ear','eye','fan','gem','hen','ink','jam','jet','kid','leg','lip',
+   'man','mud','net','nut','oak','pan','pen','pot','rat','saw','tip','toy','van','web','zoo','fog','gum','hut','log','wax'],
+  // Lv2: medium
+  ['apple','tiger','music','pizza','robot','cloud','storm','magic','sword','ninja','dragon','castle','planet','rocket','shield','wizard',
+   'anchor','bridge','candle','donkey','eagle','forest','goblin','hammer','island','jungle','kitten','meteor','ocean','parrot',
+   'rabbit','spider','temple','turtle','violet','walnut','zombie','banana','cherry','flower','guitar','helmet','marble','pirate',
+   'salmon','ticket','window','yogurt','copper','desert'],
+  // Lv3: long
+  ['adventure','chocolate','dinosaur','firework','treasure','festival','superhero','spaceship','tornado','avalanche','challenger','lightning',
+   'butterfly','crocodile','dangerous','fantastic','gigantic','helicopter','jellyfish','kangaroo','laboratory','nightmare',
+   'pineapple','restaurant','strawberry','telescope','umbrella','volcano','waterfall','xylophone','yesterday','basketball',
+   'crossroads','dragonfly','earthquake','grasshopper','incredible','mysterious'],
+  // Lv4: sentences
+  ['the quick brown fox','never give up now','type like the wind','believe in yourself','a hero never sleeps','the storm is coming',
+   'practice makes perfect','time flies like an arrow','fortune favors the bold','no pain no gain today',
+   'the early bird gets the worm','slow and steady wins the race','every cloud has a silver line','look before you leap now'],
+];
+const BOSS_EN = [
+  'i am the great demon king','show me your true power','this is my final attack',
+  'you will never defeat me','type faster if you can','feel the power of darkness',
+  'your journey ends right here','no one has ever beaten me',
+  'darkness will swallow this world','my power knows no limits','tremble before my mighty roar',
+  'you cannot escape from me','the end of your story is near','a thousand warriors have fallen',
+  'kneel before the demon king','this battle will be your last',
+];
+
+// ---------- サウンド(Web Audio) ----------
+const SND = {
+  ctx:null, master:null, muted:false,
+  init(){
+    if(this.ctx) return;
+    const C = window.AudioContext || window.webkitAudioContext;
+    if(!C) return;
+    this.ctx = new C();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = .5;
+    this.master.connect(this.ctx.destination);
+  },
+  resume(){ this.init(); if(this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  tone(o){
+    if(!this.ctx || this.muted) return;
+    const {f=440, f2=0, type='square', dur=.1, g=.3, delay=0} = o;
+    const t = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator(), gn = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f, t);
+    if(f2) osc.frequency.exponentialRampToValueAtTime(Math.max(f2,1), t + dur);
+    gn.gain.setValueAtTime(g, t);
+    gn.gain.exponentialRampToValueAtTime(.001, t + dur);
+    osc.connect(gn); gn.connect(this.master);
+    osc.start(t); osc.stop(t + dur + .05);
+  },
+  noise(o){
+    if(!this.ctx || this.muted) return;
+    const {dur=.1, g=.3, fl='lowpass', fq=1000, q=1, delay=0} = o;
+    const t = this.ctx.currentTime + delay;
+    const len = Math.max(1, (dur + .02) * this.ctx.sampleRate) | 0;
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = this.ctx.createBufferSource(); src.buffer = buf;
+    const flt = this.ctx.createBiquadFilter(); flt.type = fl; flt.frequency.value = fq; flt.Q.value = q;
+    const gn = this.ctx.createGain();
+    gn.gain.setValueAtTime(g, t);
+    gn.gain.exponentialRampToValueAtTime(.001, t + dur);
+    src.connect(flt); flt.connect(gn); gn.connect(this.master);
+    src.start(t); src.stop(t + dur + .02);
+  },
+  punch(tier){ // 発砲音「ダンダンダン！」＝鋭い撃鉄クリック+中域の破裂+低い胴鳴り
+    if(tier <= 0){        // ダン!
+      this.noise({dur:.018, fl:'highpass', fq:4000, g:.22});
+      this.noise({dur:.07, fl:'bandpass', fq:520, q:1, g:.4});
+      this.tone({f:190, f2:46, type:'sine', dur:.12, g:.5});
+    }else if(tier === 1){ // ダンダン!
+      this.noise({dur:.02, fl:'highpass', fq:3600, g:.26});
+      this.noise({dur:.09, fl:'bandpass', fq:420, q:.9, g:.5});
+      this.tone({f:165, f2:42, type:'sine', dur:.14, g:.56});
+      this.tone({f:240, f2:70, type:'square', dur:.06, g:.14});
+    }else{                // ダンダンダン!! 重火器
+      this.noise({dur:.025, fl:'highpass', fq:3200, g:.3});
+      this.noise({dur:.13, fl:'lowpass', fq:750, g:.6});
+      this.noise({dur:.08, fl:'bandpass', fq:350, q:.8, g:.45});
+      this.tone({f:135, f2:34, type:'sine', dur:.19, g:.62});
+      this.tone({f:95, f2:28, type:'sawtooth', dur:.12, g:.22});
+    }
+  },
+  miss(){ this.tone({f:110, type:'square', dur:.09, g:.16}); this.tone({f:117, type:'square', dur:.09, g:.16}); },
+  select(){ this.tone({f:660, f2:990, type:'sine', dur:.06, g:.15}); },
+  defeat(big){
+    this.noise({dur: big?.4:.18, fl:'lowpass', fq: big?900:1400, g: big?.6:.4});
+    this.tone({f:420, f2:880, type:'sine', dur:.12, g:.3});
+    this.tone({f:620, f2:1240, type:'sine', dur:.14, g:.22, delay:.05});
+    if(big){
+      this.tone({f:100, f2:30, type:'sine', dur:.5, g:.6});
+      [523,659,784,1047].forEach((f,i)=>this.tone({f, type:'square', dur:.14, g:.16, delay:.25+i*.09}));
+    }
+  },
+  playerHit(){
+    this.noise({dur:.3, fl:'lowpass', fq:700, g:.5});
+    this.tone({f:220, f2:45, type:'sawtooth', dur:.3, g:.35});
+  },
+  bossRoar(){
+    this.tone({f:60, f2:120, type:'sawtooth', dur:.7, g:.4});
+    this.tone({f:45, f2:90, type:'square', dur:.7, g:.3});
+    this.noise({dur:.6, fl:'lowpass', fq:400, g:.35});
+  },
+  fanfare(){
+    [523,659,784,1047,1319].forEach((f,i)=>{
+      this.tone({f, type:'square', dur:.16, g:.18, delay:i*.11});
+      this.tone({f:f/2, type:'triangle', dur:.16, g:.14, delay:i*.11});
+    });
+    this.tone({f:1568, type:'square', dur:.5, g:.18, delay:.58});
+  },
+  gameover(){ [392,330,262,196].forEach((f,i)=>this.tone({f, type:'triangle', dur:.3, g:.25, delay:i*.22})); },
+  click(){ this.resume(); this.tone({f:880, f2:1200, type:'sine', dur:.05, g:.12}); },
+};
+
+// ---------- ゲーム状態 ----------
+const W = 960, H = 540, PX = 110, PY = 330;
+const MUZX = PX + 54, MUZY = PY - 8; // 銃口の位置
+const SLOTS = [
+  {x:660,y:200},{x:660,y:315},{x:660,y:430},
+  {x:830,y:200},{x:830,y:315},{x:830,y:430},
+];
+const TYPES = ['slime','bat','ghost','imp'];
+const PUNCH_TXT = ['ダン!','ダンダン!','ダンダンダン!!'];
+const G = {
+  scene:'menu', mode:'stage', stageNo:1, lang:'jp', kanaMode:false, unlocked:1,
+  hearts:3, miss:0, hits:0, kills:0, score:0,
+  heat:0, lastHit:0, combo:0, heroPunch:0,
+  enemies:[], parts:[], shake:0, flash:0, missFx:0,
+  state:'intro', stateT:0, remaining:0, conf:null, wave:1, nextT:0,
+  sel:null, marker:null, locked:false,
+  startTime:0, time:0, clearTime:0, spawnT:0, overShown:false,
+};
+
+function stageConf(n){
+  return {
+    total: 5 + n*2,
+    simul: Math.min(2 + ((n-1)>>1), 6),
+    gauge: Math.max(9 - n*.5, 4) + (n<=2 ? 2.5 : 0),
+    pool: n<=2 ? 1 : n<=5 ? 2 : n<=8 ? 3 : 4,
+    bossPhrases: 2 + Math.floor(n/3),
+    bossGauge: Math.max(11 - n*.4, 5.5),
+    hue: 220 + n*26,
+  };
+}
+function endlessConf(w){
+  return {
+    total: 4 + w,
+    simul: Math.min(2 + (w>>1), 6),
+    gauge: Math.max(8.5 - w*.35, 3.5),
+    pool: Math.min(1 + ((w-1)/3|0), 4),
+    bossPhrases: Math.min(2 + (w/5|0), 6),
+    bossGauge: Math.max(9 - w*.2, 4.5),
+    hue: 190 + w*17,
+  };
+}
+
+function firstKey(w){
+  if(G.lang === 'en' || G.kanaMode) return w[0];
+  const t = tokenize(w);
+  return t.length ? t[0].opts[0][0] : w[0];
+}
+function pickWord(){
+  const pools = G.lang === 'en' ? WORDS_EN : WORDS_JP;
+  let lvl = G.conf.pool;
+  if(lvl > 1 && Math.random() < .3) lvl--;
+  const pool = pools[lvl-1];
+  const used = new Set(G.enemies.map(e => e.word));
+  const heads = new Set(G.enemies.map(e => firstKey(e.word)));
+  for(let k = 0; k < 40; k++){
+    const w = pool[(Math.random()*pool.length)|0];
+    if(used.has(w)) continue;
+    if(k < 25 && heads.has(firstKey(w))) continue;
+    return w;
+  }
+  return pool[(Math.random()*pool.length)|0];
+}
+function pickBossPhrases(n){
+  const src = (G.lang === 'en' ? BOSS_EN : BOSS_JP).slice();
+  for(let i = src.length-1; i > 0; i--){ const j = (Math.random()*(i+1))|0; [src[i],src[j]] = [src[j],src[i]]; }
+  return src.slice(0, n);
+}
+
+function spawnEnemy(){
+  // 新しい敵は必ず後列(スロット3-5)に出現。前列へは繰り上がりで移動する
+  const usedSlots = new Set(G.enemies.map(e => e.slot));
+  let slot = -1;
+  for(const i of [3,4,5]){ if(!usedSlots.has(i)){ slot = i; break; } }
+  if(slot < 0) return false;
+  const word = pickWord();
+  const typePool = TYPES.slice(0, Math.min(4, 1 + ((G.mode==='stage'?G.stageNo:G.wave)+1>>1)));
+  G.enemies.push({
+    word, typer: makeTyper(word), boss:false,
+    type: typePool[(Math.random()*typePool.length)|0],
+    hue: (Math.random()*360)|0,
+    slot, tx:SLOTS[slot].x, ty:SLOTS[slot].y, x:1060, y:SLOTS[slot].y,
+    state:'enter', t:Math.random()*10, gauge:G.conf.gauge, gaugeMax:G.conf.gauge,
+    flash:0, dieT:0, atkT:0, atkDone:false, scale:1, stagT:0,
+  });
+  return true;
+}
+function spawnBoss(){
+  const phrases = pickBossPhrases(G.conf.bossPhrases);
+  G.enemies.push({
+    word: phrases[0], typer: makeTyper(phrases[0]), boss:true,
+    phrases, phraseIdx:0, hp:phrases.length, hpMax:phrases.length,
+    type:'boss', hue:275, slot:-1, tx:740, ty:300, x:1200, y:300,
+    state:'enter', t:0, gauge:G.conf.bossGauge, gaugeMax:G.conf.bossGauge,
+    flash:0, dieT:0, atkT:0, atkDone:false, scale:1.55, stagT:0,
+  });
+}
+
+function resetRun(){
+  G.hearts = 3; G.miss = 0; G.hits = 0; G.kills = 0; G.score = 0;
+  G.heat = 0; G.combo = 0; G.enemies = []; G.parts = []; G.sel = null;
+  G.marker = null; G.locked = false;
+  G.shake = 0; G.flash = 0; G.state = 'intro'; G.stateT = 0; G.nextT = 0;
+  G.time = 0; G.clearTime = 0; G.spawnT = 0; G.overShown = false;
+}
+function startStage(n){
+  G.mode = 'stage'; G.stageNo = n; G.conf = stageConf(n);
+  resetRun();
+  G.remaining = G.conf.total;
+  G.scene = 'play';
+  hideOverlays();
+  if(isTouch) hin.focus();
+}
+function startEndless(){
+  G.mode = 'endless'; G.wave = 1; G.conf = endlessConf(1);
+  resetRun();
+  G.remaining = G.conf.total;
+  G.scene = 'play';
+  hideOverlays();
+  if(isTouch) hin.focus();
+}
+function nextWaveEndless(){
+  G.wave++;
+  G.conf = endlessConf(G.wave);
+  if(G.wave % 5 === 0){
+    G.state = 'bossin'; G.stateT = 0; spawnBoss(); SND.bossRoar();
+  }else{
+    G.remaining = G.conf.total; G.state = 'wave';
+    floatText(W/2, 200, 'WAVE ' + G.wave, 40, '#7ee8fa');
+  }
+}
+
+// ---------- パーティクル ----------
+function floatText(x, y, txt, size, color){
+  G.parts.push({kind:'txt', x, y, txt, size, color, vx:0, vy:-55, life:.8, max:.8});
+}
+function hitFx(x, y, tier){
+  // 弾道トレーサー
+  G.parts.push({kind:'tracer', x:MUZX, y:MUZY, tx:x, ty:y, life:.07, max:.07});
+  // 薬莢の排出
+  G.parts.push({kind:'shell', x:MUZX-24, y:MUZY-4,
+    vx:-(50+Math.random()*90), vy:-(150+Math.random()*130), grav:640,
+    rot:Math.random()*Math.PI, vr:(Math.random()-.5)*20, size:1, life:1.1, max:1.1});
+  G.parts.push({kind:'star', x, y, size:16+tier*10, life:.14, max:.14, rot:Math.random()*Math.PI});
+  const n = 4 + tier*3;
+  for(let i = 0; i < n; i++){
+    const a = Math.random()*Math.PI*2, sp = 90 + Math.random()*160 + tier*60;
+    G.parts.push({kind:'spark', x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-40, grav:400,
+      size:2+Math.random()*3+tier, color:`hsl(${40+Math.random()*20},100%,${60+Math.random()*25}%)`, life:.35, max:.35});
+  }
+  floatText(x + (Math.random()*40-20), y - 50, PUNCH_TXT[tier], 17+tier*8, ['#fff','#ffe259','#ff5e62'][tier]);
+}
+function burstFx(x, y, hue, big){
+  const n = big ? 30 : 14;
+  for(let i = 0; i < n; i++){
+    const a = Math.random()*Math.PI*2, sp = 60 + Math.random()*(big?320:200);
+    G.parts.push({kind:'spark', x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, grav:300,
+      size:3+Math.random()*(big?6:4), color:`hsl(${hue+Math.random()*60-30},90%,65%)`, life:.6, max:.6});
+  }
+  G.parts.push({kind:'ring', x, y, size:10, grow:big?520:280, life:.3, max:.3, color:big?'#ffe259':'#fff'});
+}
+
+// ---------- ダメージ・撃破 ----------
+function damagePlayer(){
+  G.hearts--;
+  G.shake = Math.max(G.shake, 16);
+  G.flash = .45;
+  G.heat = 0; G.combo = 0;
+  SND.playerHit();
+  floatText(PX, PY-80, 'いてっ!!', 26, '#ff5e62');
+  if(G.hearts <= 0){
+    G.state = 'dead'; G.stateT = 0;
+    SND.gameover();
+  }
+}
+function defeatEnemy(e){
+  if(e.boss){
+    e.hp--;
+    burstFx(e.x, e.y, 50, false);
+    SND.punch(2);
+    G.shake = Math.max(G.shake, 10);
+    if(e.hp > 0){
+      e.phraseIdx++;
+      e.word = e.phrases[e.phraseIdx];
+      e.typer = makeTyper(e.word);
+      e.gauge = e.gaugeMax;
+      e.stagT = 1;
+      G.score += 500;
+      SND.defeat(false);
+      floatText(e.x, e.y-120, '+500', 22, '#ffe259');
+    }else{
+      e.state = 'die';
+      G.sel = null; G.locked = false; G.kills++;
+      G.score += 1500;
+      burstFx(e.x, e.y, 55, true);
+      SND.defeat(true);
+      G.shake = 22;
+      if(G.mode === 'stage'){
+        G.clearTime = G.time;
+        G.state = 'clear'; G.stateT = 0;
+      }else{
+        if(G.hearts < 3){ G.hearts++; floatText(PX, PY-80, '♥かいふく!', 22, '#ff9ad5'); }
+        G.score += 1000;
+        G.nextT = 1.4;
+        G.state = 'wave'; G.remaining = 0;
+      }
+    }
+  }else{
+    e.state = 'die';
+    if(G.sel === e){ G.sel = null; G.locked = false; }
+    G.kills++;
+    G.score += 100 + e.word.length*10;
+    burstFx(e.x, e.y, e.hue, false);
+    SND.defeat(false);
+    floatText(e.x, e.y-70, '+'+(100+e.word.length*10), 18, '#ffe259');
+  }
+}
+
+// ---------- タイピング処理 ----------
+function targetable(e){ return e.state === 'idle' || e.state === 'enter' || e.state === 'attack'; }
+function handleChar(raw){
+  if(G.scene !== 'play') return;
+  if(G.state !== 'wave' && G.state !== 'boss' && G.state !== 'bossin') return;
+  SND.resume();
+  let ch = raw;
+  if(!(G.lang === 'jp' && G.kanaMode)) ch = ch.toLowerCase();
+  if(ch.length !== 1) return;
+  if(G.lang === 'jp' && ch === ' ') return;
+
+  let hitEnemy = null;
+  if(G.sel && targetable(G.sel)){
+    if(G.sel.typer.type(ch)) hitEnemy = G.sel;
+  }else if(isTouch){
+    // スマホ：タイプした文字に一致する敵を自動ターゲット
+    G.sel = null;
+    const cands = G.enemies.filter(targetable).sort((a,b) => a.x - b.x);
+    for(const e of cands){
+      if(e.typer.type(ch)){ hitEnemy = e; G.sel = e; G.marker = e; G.locked = true; break; }
+    }
+  }else{
+    return; // PC：ロックオンしていない間はタイプ無効(ミスにもしない)
+  }
+  if(hitEnemy){
+    G.hits++;
+    const now = performance.now();
+    if(now - G.lastHit < 320) G.heat = Math.min(G.heat + 1, 12);
+    else if(now - G.lastHit > 750) G.heat = 0;
+    G.combo = (now - G.lastHit < 950) ? G.combo + 1 : 1;
+    G.lastHit = now;
+    const tier = G.heat >= 8 ? 2 : G.heat >= 3 ? 1 : 0;
+    SND.punch(tier);
+    G.heroPunch = 1;
+    hitEnemy.flash = .18;
+    hitEnemy.t += .5;
+    G.shake = Math.max(G.shake, 1.5 + tier*2.5);
+    G.score += 10*(tier+1);
+    const sc = hitEnemy.boss ? hitEnemy.scale : 1;
+    hitFx(hitEnemy.x - 20*sc + Math.random()*20, hitEnemy.y - 10 + Math.random()*20, tier);
+    if(hitEnemy.typer.done()) defeatEnemy(hitEnemy);
+  }else{
+    G.miss++;
+    G.heat = 0; G.combo = 0;
+    G.missFx = .3;
+    SND.miss();
+  }
+}
+function markerMove(dir){
+  const cands = G.enemies.filter(targetable).sort((a,b) => a.x - b.x || a.y - b.y);
+  if(!cands.length) return;
+  const i = cands.indexOf(G.marker);
+  G.marker = cands[i < 0 ? 0 : (i + dir + cands.length) % cands.length];
+  SND.select();
+}
+function spaceAction(){
+  if(G.scene !== 'play') return;
+  if(G.state !== 'wave' && G.state !== 'boss' && G.state !== 'bossin') return;
+  if(G.locked && G.sel){
+    // 英語の文章：次に打つ文字がスペースならタイプ扱い
+    if(G.lang === 'en' && G.sel.typer.word && G.sel.typer.word[G.sel.typer.idx] === ' '){
+      handleChar(' ');
+      return;
+    }
+    G.locked = false; G.sel = null;
+    SND.select();
+  }else if(G.marker && targetable(G.marker)){
+    G.sel = G.marker; G.locked = true;
+    SND.select();
+  }
+}
+
+// ---------- 更新 ----------
+function update(dt){
+  G.shake *= Math.pow(.0001, dt); if(G.shake < .1) G.shake = 0;
+  G.flash = Math.max(0, G.flash - dt);
+  G.missFx = Math.max(0, G.missFx - dt);
+  G.heroPunch *= Math.pow(.0005, dt);
+  if(performance.now() - G.lastHit > 750) G.heat = 0;
+
+  for(let i = G.parts.length-1; i >= 0; i--){
+    const p = G.parts[i];
+    p.life -= dt;
+    if(p.vx !== undefined){ p.x += p.vx*dt; p.y += p.vy*dt; if(p.grav) p.vy += p.grav*dt; }
+    if(p.vr) p.rot += p.vr*dt;
+    if(p.kind === 'shell' && p.y > H-38 && p.vy > 0){ p.y = H-38; p.vy *= -.35; p.vx *= .6; p.vr *= .6; }
+    if(p.life <= 0) G.parts.splice(i,1);
+  }
+  if(G.scene !== 'play') return;
+  G.stateT += dt;
+
+  if(G.state === 'intro'){
+    if(G.stateT > 1.7){ G.state = 'wave'; G.startTime = performance.now(); }
+  }else if(G.state === 'wave' || G.state === 'boss' || G.state === 'bossin'){
+    G.time = (performance.now() - G.startTime) / 1000;
+  }
+
+  if(G.state === 'wave'){
+    if(G.nextT > 0){
+      G.nextT -= dt;
+      if(G.nextT <= 0) nextWaveEndless();
+    }else{
+      G.spawnT -= dt;
+      const active = G.enemies.filter(e => e.state !== 'die').length;
+      if(G.remaining > 0 && active < G.conf.simul && G.spawnT <= 0){
+        if(spawnEnemy()){ G.remaining--; G.spawnT = .75; }
+      }
+      if(G.remaining <= 0 && G.enemies.length === 0){
+        if(G.mode === 'stage'){
+          G.state = 'bossin'; G.stateT = 0; spawnBoss(); SND.bossRoar();
+        }else{
+          nextWaveEndless();
+        }
+      }
+    }
+  }else if(G.state === 'bossin'){
+    if(G.stateT > 1.5) G.state = 'boss';
+  }else if(G.state === 'clear'){
+    if(G.stateT > .8 && !G.fanfared){ G.fanfared = true; SND.fanfare(); }
+    if(G.stateT > 2.2){ G.fanfared = false; showResult(); }
+  }else if(G.state === 'dead'){
+    if(G.stateT > 1.3 && !G.overShown){ G.overShown = true; showGameOver(); }
+  }
+
+  // 前列(0-2)が空いたら同じ行の後列(3-5)の敵が前にせり出す
+  for(let r = 0; r < 3; r++){
+    if(!G.enemies.some(e => e.slot === r)){
+      const back = G.enemies.find(e => e.slot === r+3 && (e.state === 'idle' || e.state === 'enter'));
+      if(back){
+        back.slot = r; back.tx = SLOTS[r].x;
+        if(back.state === 'idle') back.state = 'enter'; // 前へスライド移動
+      }
+    }
+  }
+
+  // マーカーの整合性維持
+  if(G.locked && (!G.sel || G.sel.state === 'die' || !G.enemies.includes(G.sel))){
+    G.locked = false; G.sel = null;
+  }
+  if(!G.marker || !G.enemies.includes(G.marker) || !targetable(G.marker)){
+    G.marker = G.enemies.filter(targetable).sort((a,b) => a.x - b.x)[0] || null;
+  }
+  if(G.locked) G.marker = G.sel;
+
+  const gaugeRun = G.state === 'wave' || G.state === 'boss';
+  for(let i = G.enemies.length-1; i >= 0; i--){
+    const e = G.enemies[i];
+    e.t += dt;
+    e.flash = Math.max(0, e.flash - dt);
+    e.stagT = Math.max(0, e.stagT - dt*1.5);
+    if(e.state === 'enter'){
+      e.x -= 300*dt;
+      if(e.x <= e.tx){ e.x = e.tx; e.state = 'idle'; }
+    }else if(e.state === 'idle'){
+      if(gaugeRun && G.nextT <= 0){
+        e.gauge -= dt;
+        if(e.gauge <= 0){ e.state = 'attack'; e.atkT = 0; e.atkDone = false; }
+      }
+    }else if(e.state === 'attack'){
+      e.atkT += dt / .85;
+      const k = e.atkT;
+      let p;
+      if(k < .42) p = (k/.42)*(k/.42);
+      else if(k < .58) p = 1;
+      else p = 1 - Math.min(1,(k-.58)/.42);
+      e.x = e.tx + (PX+75 - e.tx)*p;
+      e.y = e.ty + (PY-20 - e.ty)*p;
+      if(!e.atkDone && k >= .42){ e.atkDone = true; if(G.state !== 'dead') damagePlayer(); }
+      if(k >= 1){ e.state = 'idle'; e.gauge = e.gaugeMax; e.x = e.tx; e.y = e.ty; }
+    }else if(e.state === 'die'){
+      e.dieT += dt*2.6;
+      if(e.dieT >= 1) G.enemies.splice(i,1);
+    }
+  }
+}
+
+// ---------- DOMヘルパ・結果画面 ----------
+const $id = s => document.getElementById(s);
+function hideOverlays(){ document.querySelectorAll('.ov').forEach(o => o.classList.remove('show')); }
+function fmtTime(s){
+  const m = (s/60)|0, sec = s - m*60;
+  return m + ':' + (sec<10?'0':'') + sec.toFixed(1);
+}
+function toTitle(){
+  G.scene = 'menu'; G.enemies = []; G.parts = []; G.sel = null;
+  hideOverlays(); $id('ovTitle').classList.add('show');
+  hin.blur();
+}
+function showResult(){
+  G.scene = 'result';
+  const acc = (G.hits + G.miss) ? G.hits/(G.hits+G.miss) : 1;
+  const rank = (acc >= .97 && G.hearts === 3) ? 'S' : acc >= .92 ? 'A' : acc >= .8 ? 'B' : 'C';
+  const rcol = {S:'#ffe259',A:'#7ee8fa',B:'#9dff8a',C:'#cdbfff'}[rank];
+  const allClear = G.stageNo >= 10;
+  if(G.stageNo >= G.unlocked && !allClear) G.unlocked = G.stageNo + 1;
+  const ov = $id('ovResult');
+  ov.innerHTML = `
+    <h2 class="head">${allClear ? '✨ぜんステージクリア!!✨' : 'STAGE CLEAR!!'}</h2>
+    <div class="rank" style="color:${rcol}">${rank}</div>
+    <div class="stats">
+      クリアタイム <b>${fmtTime(G.clearTime)}</b><br>
+      ミスタイプ <b>${G.miss}</b> かい<br>
+      せいかくりつ <b>${(acc*100).toFixed(1)}%</b><br>
+      スコア <b>${G.score}</b>
+    </div>
+    <div class="btnrow">
+      ${allClear ? '' : '<button class="btn" id="rNext">つぎのステージ →</button>'}
+      <button class="btn blue small" id="rRetry">もういちど</button>
+      <button class="btn blue small" id="rSel">ステージせんたく</button>
+      <button class="btn blue small" id="rTitle">タイトル</button>
+    </div>`;
+  hideOverlays(); ov.classList.add('show');
+  if(!allClear) $id('rNext').onclick = () => { SND.click(); startStage(G.stageNo+1); };
+  $id('rRetry').onclick = () => { SND.click(); startStage(G.stageNo); };
+  $id('rSel').onclick = () => { SND.click(); openStageSel(); };
+  $id('rTitle').onclick = () => { SND.click(); toTitle(); };
+}
+function showGameOver(){
+  G.scene = 'over';
+  const ov = $id('ovOver');
+  const endless = G.mode === 'endless';
+  ov.innerHTML = `
+    <h2 class="head bad">GAME OVER...</h2>
+    <div class="stats">
+      ${endless ? `とうたつ WAVE <b>${G.wave}</b><br>スコア <b>${G.score}</b><br>` : `STAGE <b>${G.stageNo}</b><br>`}
+      たおしたてき <b>${G.kills}</b> たい<br>
+      ミスタイプ <b>${G.miss}</b> かい
+    </div>
+    <div class="btnrow">
+      <button class="btn" id="oRetry">リベンジ!</button>
+      <button class="btn blue small" id="oTitle">タイトル</button>
+    </div>`;
+  hideOverlays(); ov.classList.add('show');
+  $id('oRetry').onclick = () => { SND.click(); G.mode==='endless' ? startEndless() : startStage(G.stageNo); };
+  $id('oTitle').onclick = () => { SND.click(); toTitle(); };
+}
+function openStageSel(){
+  const grid = $id('stGrid');
+  grid.innerHTML = '';
+  for(let n = 1; n <= 10; n++){
+    const b = document.createElement('button');
+    b.className = 'stbtn' + (n <= G.unlocked ? '' : ' lock');
+    b.textContent = n <= G.unlocked ? n : '🔒';
+    if(n <= G.unlocked) b.onclick = () => { SND.click(); startStage(n); };
+    grid.appendChild(b);
+  }
+  hideOverlays(); $id('ovStage').classList.add('show');
+}
+
+// ---------- 描画 ----------
+const cv = $id('cv'), ctx = cv.getContext('2d');
+const FONT = "'Hiragino Maru Gothic ProN','BIZ UDPGothic','Meiryo',sans-serif";
+function otext(s, x, y, size, fill, align, lw){
+  ctx.font = `900 ${size}px ${FONT}`;
+  ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = lw || Math.max(3, size/6);
+  ctx.strokeStyle = 'rgba(18,10,40,.85)';
+  ctx.strokeText(s, x, y);
+  ctx.fillStyle = fill;
+  ctx.fillText(s, x, y);
+}
+function typedText(typed, rem, x, y, size){
+  ctx.font = `900 ${size}px ${FONT}`;
+  ctx.textBaseline = 'middle';
+  const w1 = ctx.measureText(typed).width, w2 = ctx.measureText(rem).width;
+  const sx = x - (w1+w2)/2;
+  ctx.textAlign = 'left';
+  ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(3, size/6); ctx.strokeStyle = 'rgba(18,10,40,.85)';
+  if(typed){ ctx.strokeText(typed, sx, y); ctx.fillStyle = '#ffa751'; ctx.fillText(typed, sx, y); }
+  if(rem){ ctx.strokeText(rem, sx+w1, y); ctx.fillStyle = '#fff'; ctx.fillText(rem, sx+w1, y); }
+}
+function drawHeart(x, y, s, on){
+  ctx.save(); ctx.translate(x,y); ctx.scale(s/14,s/14);
+  ctx.beginPath();
+  ctx.moveTo(0,5);
+  ctx.bezierCurveTo(-14,-6,-7,-16,0,-8);
+  ctx.bezierCurveTo(7,-16,14,-6,0,5);
+  ctx.closePath();
+  ctx.fillStyle = on ? '#ff4d6d' : 'rgba(255,255,255,.18)';
+  ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(18,10,40,.8)'; ctx.stroke();
+  if(on){ ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.ellipse(-4,-7,3,2,-.6,0,7); ctx.fill(); }
+  ctx.restore();
+}
+function drawBG(){
+  const hue = (G.scene === 'play' || G.scene === 'result' || G.scene === 'over') && G.conf ? G.conf.hue : 258;
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0, `hsl(${hue},50%,13%)`);
+  g.addColorStop(.7, `hsl(${hue},52%,26%)`);
+  g.addColorStop(1, `hsl(${hue},45%,32%)`);
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = 'rgba(255,255,255,.5)';
+  for(let i = 0; i < 40; i++){
+    const sx = (i*97.3)%W, sy = (i*57.7)%(H*.5);
+    const tw = .5 + .5*Math.sin(performance.now()/700 + i);
+    ctx.globalAlpha = .25*tw;
+    ctx.fillRect(sx, sy, 2, 2);
+  }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = `hsl(${hue},35%,20%)`;
+  ctx.beginPath(); ctx.ellipse(200,H-60,260,90,0,Math.PI,0); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(700,H-60,320,120,0,Math.PI,0); ctx.fill();
+  ctx.fillStyle = `hsl(${hue},30%,25%)`;
+  ctx.fillRect(0,H-70,W,70);
+  ctx.fillStyle = 'rgba(0,0,0,.15)';
+  ctx.fillRect(0,H-70,W,5);
+}
+function drawHero(){
+  const bob = Math.sin(performance.now()/280)*3;
+  const fire = G.heroPunch;       // 発砲直後ほど大きい
+  const recoil = fire*4;          // リコイルで少し後ろへ
+  ctx.save();
+  ctx.translate(PX - recoil, PY + bob);
+  // 脚(ミリタリーパンツ+ブーツ)
+  ctx.fillStyle = '#4a5232';
+  ctx.fillRect(-14,22,11,15); ctx.fillRect(3,22,11,15);
+  ctx.fillStyle = '#2c2c2c';
+  ctx.fillRect(-15,35,13,5); ctx.fillRect(2,35,13,5);
+  // 後ろ腕(むきむき)
+  ctx.fillStyle = '#d9a066';
+  ctx.beginPath(); ctx.arc(-14,-4,7,0,7); ctx.fill();
+  // 胴体(タンクトップ)
+  ctx.fillStyle = '#3d4f3a';
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-17,-14,34,38,8) : ctx.rect(-17,-14,34,38); ctx.fill();
+  // 弾帯(たすきがけ)
+  ctx.strokeStyle = '#7a5c24'; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(-15,-10); ctx.lineTo(15,18); ctx.stroke();
+  ctx.fillStyle = '#ffd24a';
+  for(let i = 0; i < 5; i++) ctx.fillRect(-14+i*6, -10+i*5.4, 3, 6);
+  // 頭
+  ctx.fillStyle = '#e8b27d';
+  ctx.beginPath(); ctx.arc(0,-30,16,0,7); ctx.fill();
+  // 髪(黒・肩まで)
+  ctx.fillStyle = '#2b1d12';
+  ctx.beginPath(); ctx.arc(0,-33,15,Math.PI*.95,Math.PI*.05,false); ctx.fill();
+  ctx.fillRect(-15,-34,6,18);
+  // バンダナ(赤・なびく)
+  ctx.fillStyle = '#d42a2a';
+  ctx.fillRect(-16,-41,32,8);
+  ctx.beginPath();
+  ctx.moveTo(-14,-37);
+  ctx.lineTo(-34,-30+bob*1.5); ctx.lineTo(-28,-40+bob);
+  ctx.closePath(); ctx.fill();
+  // 鋭い目
+  ctx.fillStyle = '#222';
+  ctx.fillRect(3,-31,5,4); ctx.fillRect(11,-31,5,4);
+  ctx.strokeStyle = '#222'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(2,-35); ctx.lineTo(9,-33); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(10,-33); ctx.lineTo(17,-35); ctx.stroke();
+  // サブマシンガン
+  ctx.fillStyle = '#1f2227';
+  ctx.fillRect(-8,-11,14,6);           // ストック
+  ctx.fillRect(2,-13,34,10);           // 本体
+  ctx.fillRect(36,-11,18,5);           // 銃身
+  ctx.fillRect(11,-4,7,15);            // マガジン
+  ctx.fillStyle = '#3a3f47';
+  ctx.fillRect(20,-17,10,4);           // サイト
+  ctx.fillRect(30,-4,5,8);             // グリップ
+  // 両手
+  ctx.fillStyle = '#e8b27d';
+  ctx.beginPath(); ctx.arc(9,-2,6,0,7); ctx.arc(31,-4,6,0,7); ctx.fill();
+  // マズルフラッシュ
+  if(fire > .3){
+    ctx.save();
+    ctx.translate(56,-8);
+    ctx.rotate((Math.random()-.5)*.5);
+    ctx.fillStyle = `rgba(255,215,80,${Math.min(1,fire)})`;
+    ctx.beginPath();
+    for(let i = 0; i < 8; i++){
+      const a = i*Math.PI/4, rr = i%2 ? 5 : 13+fire*9;
+      ctx.lineTo(Math.cos(a)*rr, Math.sin(a)*rr*.55);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(0,0,4,0,7); ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+function drawMonster(e){
+  const sc = e.scale * (e.state==='die' ? 1 + e.dieT*.7 : 1);
+  const alpha = e.state==='die' ? 1 - e.dieT : 1;
+  const bob = e.state==='attack' ? 0 : Math.sin(e.t*4)*3;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  const fsh = e.flash > 0 ? (Math.random()*6-3) : 0;
+  ctx.translate(e.x + fsh, e.y + bob + fsh*.5);
+  if(e.stagT > 0) ctx.rotate(Math.sin(e.stagT*20)*.08*e.stagT);
+  ctx.scale(sc, sc);
+  const hue = e.hue;
+  if(e.type === 'slime'){
+    const sq = Math.sin(e.t*5)*2;
+    ctx.fillStyle = `hsl(${hue},72%,52%)`;
+    ctx.beginPath(); ctx.ellipse(0,6,33+sq,26-sq,0,0,7); ctx.fill();
+    ctx.fillStyle = `hsl(${hue},75%,40%)`;
+    ctx.beginPath(); ctx.ellipse(0,14,30+sq,14,0,0,7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.beginPath(); ctx.ellipse(-13,-6,7,4,-.5,0,7); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(-10,-2,6,0,7); ctx.arc(10,-2,6,0,7); ctx.fill();
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(-12,-2,3,0,7); ctx.arc(8,-2,3,0,7); ctx.fill();
+    ctx.strokeStyle = '#222'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0,8,6,.2,Math.PI-.2); ctx.stroke();
+  }else if(e.type === 'bat'){
+    const flap = Math.sin(e.t*11)*10;
+    ctx.fillStyle = `hsl(${hue},45%,35%)`;
+    for(const s of [-1,1]){
+      ctx.beginPath();
+      ctx.moveTo(s*8,-2);
+      ctx.quadraticCurveTo(s*40,-22+flap, s*36,2+flap*.5);
+      ctx.quadraticCurveTo(s*24,10, s*10,8);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = `hsl(${hue},50%,48%)`;
+    ctx.beginPath(); ctx.arc(0,0,21,0,7); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-14,-14); ctx.lineTo(-18,-30); ctx.lineTo(-5,-20); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(14,-14); ctx.lineTo(18,-30); ctx.lineTo(5,-20); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(-8,-3,5,0,7); ctx.arc(8,-3,5,0,7); ctx.fill();
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(-9,-3,2.5,0,7); ctx.arc(7,-3,2.5,0,7); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.moveTo(-5,9); ctx.lineTo(-2,15); ctx.lineTo(1,9); ctx.closePath();
+    ctx.moveTo(3,9); ctx.lineTo(6,15); ctx.lineTo(9,9); ctx.closePath(); ctx.fill();
+  }else if(e.type === 'ghost'){
+    ctx.fillStyle = `hsla(${hue},55%,78%,.95)`;
+    ctx.beginPath();
+    ctx.arc(0,-4,26,Math.PI,0);
+    ctx.lineTo(26,16);
+    for(let x = 26; x > -27; x -= 13){
+      ctx.quadraticCurveTo(x-3, 24 + Math.sin(e.t*6+x)*3, x-13, 16);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#2a2140';
+    ctx.beginPath(); ctx.ellipse(-9,-6,4,6,0,0,7); ctx.ellipse(9,-6,4,6,0,0,7); ctx.fill();
+    ctx.beginPath(); ctx.arc(0,6,4,0,7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,120,160,.5)';
+    ctx.beginPath(); ctx.ellipse(-16,0,4,2.5,0,0,7); ctx.ellipse(16,0,4,2.5,0,0,7); ctx.fill();
+  }else if(e.type === 'imp'){
+    ctx.fillStyle = '#ffd9a0';
+    ctx.beginPath(); ctx.moveTo(-12,-16); ctx.lineTo(-20,-36); ctx.lineTo(-2,-22); ctx.closePath();
+    ctx.moveTo(12,-16); ctx.lineTo(20,-36); ctx.lineTo(2,-22); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = `hsl(${(hue%60)+340},70%,55%)`;
+    ctx.beginPath(); ctx.arc(0,0,24,0,7); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(-9,-4,5.5,0,7); ctx.arc(9,-4,5.5,0,7); ctx.fill();
+    ctx.fillStyle = '#c0202a';
+    ctx.beginPath(); ctx.arc(-10,-4,2.6,0,7); ctx.arc(8,-4,2.6,0,7); ctx.fill();
+    ctx.strokeStyle = '#5a1010'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(-14,-12); ctx.lineTo(-4,-9); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(14,-12); ctx.lineTo(4,-9); ctx.stroke();
+    ctx.fillStyle = '#5a1010';
+    ctx.beginPath(); ctx.arc(0,10,8,0,Math.PI); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.moveTo(-6,10); ctx.lineTo(-3,15); ctx.lineTo(0,10); ctx.closePath();
+    ctx.moveTo(1,10); ctx.lineTo(4,15); ctx.lineTo(7,10); ctx.closePath(); ctx.fill();
+  }else if(e.type === 'boss'){
+    const pul = 1 + Math.sin(e.t*3)*.06;
+    const grd = ctx.createRadialGradient(0,0,20,0,0,105*pul);
+    grd.addColorStop(0,'rgba(200,80,255,.4)');
+    grd.addColorStop(1,'rgba(200,80,255,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.arc(0,0,105*pul,0,7); ctx.fill();
+    ctx.fillStyle = '#3d2b5e';
+    ctx.beginPath(); ctx.arc(-60,25,17,0,7); ctx.arc(60,25,17,0,7); ctx.fill();
+    const bg2 = ctx.createLinearGradient(0,-65,0,65);
+    bg2.addColorStop(0,'#5c3d8f'); bg2.addColorStop(1,'#3a265c');
+    ctx.fillStyle = bg2;
+    ctx.beginPath(); ctx.arc(0,0,64,0,7); ctx.fill();
+    ctx.fillStyle = '#7c58b8';
+    ctx.beginPath(); ctx.ellipse(0,24,36,26,0,0,7); ctx.fill();
+    ctx.fillStyle = '#ffe259';
+    ctx.beginPath(); ctx.moveTo(-28,-42); ctx.lineTo(-52,-88); ctx.lineTo(-8,-56); ctx.closePath();
+    ctx.moveTo(28,-42); ctx.lineTo(52,-88); ctx.lineTo(8,-56); ctx.closePath(); ctx.fill();
+    ctx.save();
+    ctx.shadowColor = '#ff2e63'; ctx.shadowBlur = 16;
+    ctx.fillStyle = '#ff5e62';
+    ctx.beginPath(); ctx.arc(-22,-18,9,0,7); ctx.arc(22,-18,9,0,7); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = '#1a1030';
+    ctx.beginPath(); ctx.ellipse(-22,-18,3,6,0,0,7); ctx.ellipse(22,-18,3,6,0,0,7); ctx.fill();
+    ctx.fillStyle = '#1a1030';
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-28,4,56,18,8) : ctx.rect(-28,4,56,18); ctx.fill();
+    ctx.fillStyle = '#fff';
+    for(let i = 0; i < 4; i++){
+      const fxp = -21 + i*14;
+      ctx.beginPath(); ctx.moveTo(fxp,5); ctx.lineTo(fxp+5,13); ctx.lineTo(fxp+10,5); ctx.closePath(); ctx.fill();
+    }
+  }
+  if(e.flash > 0){
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.min(1, e.flash*4)*alpha;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(0,0,(e.type==='boss'?70:36),0,7); ctx.fill();
+  }
+  ctx.restore();
+  // 選択リングは drawMarkerCursor で描画(点線=マーカー / 赤実線=ロックオン)
+}
+function drawLabel(e){
+  if(e.state === 'die') return;
+  const isSel = G.sel === e;
+  const romaMode = G.lang === 'jp' && !G.kanaMode;
+  if(e.type === 'boss'){
+    const size = Math.min(26, 700/Math.max(1,e.word.length));
+    const kp = e.typer.kanaProgress();
+    typedText(e.word.slice(0,kp), e.word.slice(kp), W/2, 46, size);
+    if(romaMode){
+      const rem = e.typer.remain(), typ = e.typer.typed;
+      const rsize = Math.min(19, 820/Math.max(1,(rem.length+typ.length)));
+      typedText(typ, rem, W/2, 76, rsize);
+    }
+    const bw = 380, bx = W/2-bw/2, by = 92;
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(bx-2,by-2,bw+4,12);
+    const r = Math.max(0, e.gauge/e.gaugeMax);
+    ctx.fillStyle = r > .5 ? '#9dff8a' : r > .25 ? '#ffe259' : '#ff5e62';
+    ctx.fillRect(bx,by,bw*r,8);
+    for(let i = 0; i < e.hpMax; i++){
+      ctx.beginPath(); ctx.arc(W/2 - (e.hpMax-1)*11 + i*22, 116, 7, 0, 7);
+      ctx.fillStyle = i < e.hp ? '#ff4d6d' : 'rgba(255,255,255,.2)';
+      ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(18,10,40,.8)'; ctx.stroke();
+    }
+    otext('BOSS', W/2 - bw/2 - 34, 96, 16, '#ff5e62');
+    return;
+  }
+  const lx = Math.max(70, Math.min(W-70, e.x)), base = e.y - 40*e.scale;
+  const ksize = isSel ? 20 : 17;
+  const kp = e.typer.kanaProgress();
+  if(isSel) typedText(e.word.slice(0,kp), e.word.slice(kp), lx, base-30, ksize);
+  else otext(e.word, lx, base-30, ksize, 'rgba(255,255,255,.92)');
+  if(romaMode){
+    const rem = e.typer.remain(), typ = e.typer.typed;
+    if(isSel) typedText(typ, rem, lx, base-13, 13);
+    else otext(typ+rem, lx, base-13, 12, 'rgba(200,195,230,.85)');
+  }
+  const bw = 84, bx = lx-bw/2, by = romaMode ? base-4 : base-17;
+  ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(bx-2,by-2,bw+4,10);
+  const r = Math.max(0, e.gauge/e.gaugeMax);
+  const low = r <= .25 && (performance.now()/150|0)%2 === 0;
+  ctx.fillStyle = low ? '#fff' : r > .5 ? '#9dff8a' : r > .25 ? '#ffe259' : '#ff5e62';
+  ctx.fillRect(bx,by,bw*r,6);
+}
+function drawMarkerCursor(){
+  if(G.scene !== 'play') return;
+  const m = G.marker;
+  if(!m || !targetable(m)) return;
+  const off = Math.sin(performance.now()/140)*5;
+  const rr = (m.type === 'boss' ? 95 : 52)*m.scale;
+  const mx = m.x - rr - 14 + off;
+  ctx.save();
+  if(G.locked){
+    // ロックオン中：赤の実線リング(二重で光らせる)
+    ctx.strokeStyle = 'rgba(255,90,100,.35)'; ctx.lineWidth = 9;
+    ctx.beginPath(); ctx.arc(m.x, m.y, rr, 0, 7); ctx.stroke();
+    ctx.strokeStyle = '#ff3b4d'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(m.x, m.y, rr, 0, 7); ctx.stroke();
+    ctx.fillStyle = '#ff3b4d';
+  }else{
+    // マーカー中：白の点線リング(回転)
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 3;
+    ctx.setLineDash([7,8]); ctx.lineDashOffset = -performance.now()/22;
+    ctx.beginPath(); ctx.arc(m.x, m.y, rr, 0, 7); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#7ee8fa';
+  }
+  // 矢印(左右にゆれてマーカー位置を明示)
+  ctx.beginPath();
+  ctx.moveTo(mx+12, m.y); ctx.lineTo(mx-6, m.y-11); ctx.lineTo(mx-6, m.y+11);
+  ctx.closePath(); ctx.fill();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(18,10,40,.8)'; ctx.lineJoin = 'round'; ctx.stroke();
+  if(G.locked) otext('LOCK ON', m.x - rr - 26, m.y + 26, 13, '#ff5e62');
+  else if(!isTouch) otext('MARKER', m.x - rr - 26, m.y + 24, 11, 'rgba(255,255,255,.8)');
+  ctx.restore();
+}
+function drawParts(){
+  for(const p of G.parts){
+    const a = Math.max(0, p.life/p.max);
+    if(p.kind === 'spark'){
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.size*a+.5,0,7); ctx.fill();
+    }else if(p.kind === 'ring'){
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = p.color; ctx.lineWidth = 4*a+1;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.size + p.grow*(1-a),0,7); ctx.stroke();
+    }else if(p.kind === 'star'){
+      ctx.save();
+      ctx.globalAlpha = Math.min(1,a*1.5);
+      ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      for(let i = 0; i < 8; i++){
+        const ang = i*Math.PI/4, rr = i%2 ? p.size*.45 : p.size*(1.6-a);
+        ctx.lineTo(Math.cos(ang)*rr, Math.sin(ang)*rr);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }else if(p.kind === 'tracer'){
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = '#ffe68c'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.tx, p.ty); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.tx, p.ty); ctx.stroke();
+    }else if(p.kind === 'shell'){
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, a*3);
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = '#e8b84a'; ctx.fillRect(-3.5,-1.5,7,3);
+      ctx.fillStyle = '#b8892f'; ctx.fillRect(2,-1.5,1.5,3);
+      ctx.restore();
+    }else if(p.kind === 'txt'){
+      ctx.globalAlpha = Math.min(1, a*1.6);
+      otext(p.txt, p.x, p.y, p.size, p.color);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+function drawHUD(){
+  for(let i = 0; i < 3; i++) drawHeart(30+i*36, 30, 15, i < G.hearts);
+  let info;
+  if(G.mode === 'endless') info = `WAVE ${G.wave}   SCORE ${G.score}   MISS ${G.miss}`;
+  else info = `STAGE ${G.stageNo}   ⏱ ${fmtTime(G.time)}   MISS ${G.miss}`;
+  otext(info, W-20, 26, 17, '#fff', 'right');
+  if(G.combo >= 5){
+    const pulse = 1 + Math.sin(performance.now()/70)*.06;
+    otext(G.combo + ' COMBO!', W/2, 150, 30*pulse, G.combo >= 20 ? '#ff5e62' : '#ffe259');
+  }
+  ctx.save();
+  ctx.globalAlpha = .8;
+  otext(SND.muted ? '🔇' : '🔊', W-28, 60, 20, '#fff');
+  ctx.restore();
+}
+function drawBottomBar(){
+  ctx.fillStyle = 'rgba(10,5,25,.75)';
+  ctx.fillRect(0,H-46,W,46);
+  if(G.missFx > 0){
+    ctx.fillStyle = `rgba(255,40,70,${G.missFx*.9})`;
+    ctx.fillRect(0,H-46,W,3);
+    ctx.fillRect(0,H-3,W,3);
+  }
+  const e = G.sel;
+  if(e && e.state !== 'die'){
+    const romaMode = G.lang === 'jp' && !G.kanaMode;
+    if(romaMode){
+      const kp = e.typer.kanaProgress();
+      typedText(e.word.slice(0,kp), e.word.slice(kp), W/2, H-32, Math.min(16, 500/Math.max(1,e.word.length)));
+      const typ = e.typer.typed, rem = e.typer.remain();
+      typedText(typ, rem, W/2, H-13, Math.min(17, 880/Math.max(1,typ.length+rem.length)));
+    }else{
+      typedText(e.typer.typed, e.typer.remain(), W/2, H-23, Math.min(24, 860/Math.max(1,e.word.length)));
+    }
+  }else{
+    otext(isTouch ? 'てきをタップして そのままタイプ！' : '[D]/[F] マーカーいどう → [Space] ロックオン！', W/2, H-23, 15, 'rgba(200,195,230,.75)');
+  }
+}
+function drawStateFx(){
+  if(G.scene !== 'play') return;
+  if(G.state === 'intro'){
+    ctx.fillStyle = 'rgba(10,5,30,.5)'; ctx.fillRect(0,0,W,H);
+    const label = G.mode === 'endless' ? 'ENDLESS MODE' : 'STAGE ' + G.stageNo;
+    const k = Math.min(1, G.stateT/.35);
+    otext(label, W/2, 220, 56*k, '#ffe259');
+    if(G.stateT > .95) otext('GO!!', W/2, 300, 44 + Math.sin(G.stateT*20)*3, '#7ee8fa');
+  }else if(G.state === 'bossin'){
+    const fl = (performance.now()/220|0)%2 === 0;
+    ctx.fillStyle = `rgba(255,30,60,${fl ? .13 : .05})`; ctx.fillRect(0,0,W,H);
+    otext('⚠ WARNING ⚠', W/2, 200, 48, fl ? '#ff5e62' : '#ffb3b3');
+    otext('ボスが あらわれた！', W/2, 260, 24, '#fff');
+  }else if(G.state === 'clear'){
+    const k = Math.min(1, G.stateT/.3);
+    ctx.fillStyle = `rgba(255,230,120,${.12*k})`; ctx.fillRect(0,0,W,H);
+    otext(G.mode === 'endless' ? 'BOSS DEFEAT!!' : 'STAGE CLEAR!!', W/2, 240, 58*k, '#ffe259');
+  }else if(G.state === 'dead'){
+    ctx.fillStyle = `rgba(60,0,10,${Math.min(.6, G.stateT*.5)})`;
+    ctx.fillRect(0,0,W,H);
+  }
+  if(G.flash > 0){
+    ctx.fillStyle = `rgba(255,30,60,${G.flash*.45})`;
+    ctx.fillRect(0,0,W,H);
+  }
+}
+function draw(){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,W,H);
+  if(G.shake > 0) ctx.translate((Math.random()-.5)*G.shake, (Math.random()-.5)*G.shake);
+  drawBG();
+  drawHero();
+  const list = G.enemies.slice().sort((a,b) => a.y - b.y);
+  for(const e of list) drawMonster(e);
+  for(const e of list) drawLabel(e);
+  drawMarkerCursor();
+  drawParts();
+  if(G.scene === 'play' || G.scene === 'result' || G.scene === 'over'){
+    drawHUD();
+    drawBottomBar();
+  }
+  drawStateFx();
+}
+
+// ---------- 入力・起動 ----------
+// 「主ポインタが指(coarse)」の端末だけをタッチ端末扱いにする。
+// タッチスクリーン付きPCは主ポインタがマウス(fine)なのでPC扱いになる。
+const isTouch = window.matchMedia
+  ? matchMedia('(pointer: coarse)').matches
+  : (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+const hin = $id('hin');
+const box = $id('box');
+
+window.addEventListener('keydown', e => {
+  if(e.ctrlKey || e.metaKey || e.altKey) return;
+  if(G.scene === 'play'){
+    if(e.key === 'Escape'){ toTitle(); return; }
+    if(e.key === 'Tab'){ e.preventDefault(); if(!G.locked) markerMove(1); return; }
+    if(e.key === ' '){
+      // preventDefaultするので入力欄には入らず、二重処理は起きない
+      e.preventDefault();
+      spaceAction();
+      return;
+    }
+    if(e.key.length === 1){
+      e.preventDefault();
+      const k = e.key.toLowerCase();
+      if(!G.locked && (k === 'd' || k === 'f')){ markerMove(k === 'f' ? 1 : -1); return; }
+      handleChar(e.key);
+    }
+  }else if(e.key === 'm' || e.key === 'M'){
+    SND.muted = !SND.muted;
+  }
+});
+hin.addEventListener('input', e => {
+  if(!isTouch){ hin.value = ''; return; } // PCは物理キーボード(keydown)のみで処理
+  if(e.isComposing) return;
+  const v = hin.value;
+  if(!v) return;
+  hin.value = '';
+  for(const ch of v) handleChar(G.lang==='jp' && G.kanaMode ? kataToHira(ch) : ch);
+});
+hin.addEventListener('compositionend', e => {
+  const v = e.data || '';
+  hin.value = '';
+  for(const ch of kataToHira(v)) handleChar(ch);
+});
+cv.addEventListener('pointerdown', e => {
+  SND.resume();
+  const r = cv.getBoundingClientRect();
+  const mx = (e.clientX - r.left) * W / r.width;
+  const my = (e.clientY - r.top) * H / r.height;
+  if(Math.hypot(mx-(W-28), my-60) < 22){ SND.muted = !SND.muted; return; }
+  if(G.scene === 'play'){
+    let best = null, bd = 1e9;
+    for(const en of G.enemies){
+      if(!targetable(en)) continue;
+      const rad = (en.type==='boss' ? 95 : 55)*en.scale;
+      const d = Math.hypot(mx-en.x, my-en.y);
+      if(d < rad && d < bd){ best = en; bd = d; }
+    }
+    if(best){
+      if(best === G.sel && G.locked){ G.sel = null; G.locked = false; } // 同じ敵をもう一度クリックで解除
+      else { G.sel = best; G.marker = best; G.locked = true; }
+      SND.select();
+    }
+    if(isTouch) hin.focus();
+  }
+});
+
+function bindToggle(idA, idB, fn){
+  $id(idA).onclick = () => { SND.click(); $id(idA).classList.add('sel'); $id(idB).classList.remove('sel'); fn(true); };
+  $id(idB).onclick = () => { SND.click(); $id(idB).classList.add('sel'); $id(idA).classList.remove('sel'); fn(false); };
+}
+bindToggle('tgJp','tgEn', jp => {
+  G.lang = jp ? 'jp' : 'en';
+  $id('imRow').style.display = (jp && isTouch) ? 'flex' : 'none';
+});
+bindToggle('tgRoma','tgKana', roma => { G.kanaMode = !roma; });
+if(isTouch) $id('imRow').style.display = 'flex';
+$id('btStage').onclick = () => { SND.click(); openStageSel(); };
+$id('btEndless').onclick = () => { SND.click(); startEndless(); };
+$id('btBack1').onclick = () => { SND.click(); toTitle(); };
+$id('btHelp').onclick = () => { SND.click(); hideOverlays(); $id('ovHelp').classList.add('show'); };
+$id('btHelpClose').onclick = () => { SND.click(); hideOverlays(); $id('ovTitle').classList.add('show'); };
+
+function resize(){
+  const s = Math.min((innerWidth-12)/W, (innerHeight-12)/H);
+  cv.style.width = (W*s)+'px';
+  cv.style.height = (H*s)+'px';
+  box.style.width = (W*s)+'px';
+  box.style.height = (H*s)+'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+let last = performance.now();
+function tick(now){
+  const dt = Math.min(.05, (now-last)/1000);
+  last = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+// デバッグ用フック(自動テストで使用)
+window.TF = {G, handleChar, startStage, startEndless, SND, tokenize, markerMove, spaceAction};
+</script>
+</body>
+</html>

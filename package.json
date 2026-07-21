@@ -1,0 +1,12 @@
+{
+  "name": "typing-shooter",
+  "version": "1.0.0",
+  "description": "ロックオン式タイピングシューティング。単一HTMLで完結する Playable ゲーム。",
+  "private": true,
+  "scripts": {
+    "test": "node test.js && node test5.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}
