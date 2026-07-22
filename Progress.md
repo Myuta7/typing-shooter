@@ -46,6 +46,39 @@
   - 実機（iPhone/Android）でフリック操作感・キーボード高さ・セーフエリアの最終確認。
   - `npm test`（Playwright）は環境構築後に実行して回帰確認。
 
+## 2026-07-23 — 発砲音を実録音WAVサンプルに差し替え
+
+- **作業内容**（合成音→ユーザー提供の `machinegun_single.wav` に変更）:
+  - 元WAV（44100Hz/16bit/**ステレオ**/約1.4秒/241KB）を Node で **モノラル化・末尾の無音をトリム(0.55秒)・末尾25msフェードアウト** して軽量化し、**base64でHTMLに直接埋め込み**（外部素材なしの単一HTML要件を維持）。埋め込み後 HTML は約133KB。
+  - `SND` に `gun`(AudioBuffer) と `decodeGun()` を追加。`init()` 内で `decodeAudioData`（コールバック形式＝Safari互換）で非同期デコード。
+  - `punch(tier)` をサンプル再生に変更：`AudioBufferSourceNode` を master(→コンプレッサー)経由で再生。tierで音量(.66/.82/1.0)とピッチ(playbackRate .9〜1.0)を変化、毎発±2%ランダムピッチ。連打で自然にマシンガン化。tier2は低域sineを少し重ねて重量感。
+  - 従来の合成発砲音は `punchSyn()` として残し、**デコード完了前(初弾)や AudioBuffer 未取得時のフォールバック**に使用。
+  - 埋め込みは `const GUN_B64` にプレースホルダを置き、Nodeスクリプトで base64 を注入。復号検証で RIFF/WAVE・mono・16bit・0.55秒を確認。`node --check` 構文OK。
+- **変更ファイル**: TypingShooter.html（`const GUN_B64` 追加、`SND.init`/`SND.decodeGun`/`SND.punch`/`SND.punchSyn`）。ソースの `machinegun_single.wav` はリポジトリ直下に残置（埋め込み済みのためゲーム動作には不要）。
+- **次にやること**: 実機で音量・連打時の重なり具合を確認（必要なら tier別 gain や master .5 を調整）。Playableサイズ上限に対する余裕確認（現状 HTML 単体 ~133KB）。
+
+## 2026-07-23 — スマホ英語モード用ABCキーボードを自作
+
+- **作業内容**（英語モードも純正キーボードを廃止し自作化）:
+  - スマホ英語モード用に **オンスクリーンABCキーボード** を追加（QWERTY 10/9/7＋横長SPACEキー）。英文お題のスペースにも対応。英語は濁点処理不要のため、各キーは `handleChar(小文字)` を直接呼ぶだけのシンプル構成。
+  - キーボードを言語別に遅延生成する仕組みに変更：`buildKbd()`→`buildKanaKbd()` に改名し `buildEnKbd()` を追加。`kbdBuiltLang` で現在の生成言語を追跡し、`ensureKbd()`（`syncKbd` から呼ぶ）で言語が変わったら作り直す。
+  - `kbdActive()` を `isTouch && scene==='play'`（日英どちらでも有効）に変更。`startStage`/`startEndless`/canvas `pointerdown` から英語時の `hin.focus()` を撤去し、**スマホでは純正キーボードを一切出さない**（#5 縦画面の画面隠れを英語でも解消）。
+  - `renderPend()` は日本語キーボード時のみ更新するようガード追加。CSS に `.key.en`（10キー用に少し小さめ）と `.key.wide`（SPACE）を追加。ヘルプ文言を更新。
+- **変更ファイル**: TypingShooter.html（CSS `.key.en`/`.key.wide`、JS キーボードモジュール／`kbdActive`/`syncKbd`/`ensureKbd`/`startStage`/`startEndless`/`pointerdown`、ヘルプ文言）
+- **検証**: `node --check` 構文OK。実機相当のNode検証で「the storm」(スペース含む)ミス0完走、「cat」＋誤打で1ミス計上を確認。
+- **次にやること**: 実機で英語キーボードの打鍵感・キー幅（10キー横並び）の確認。`hin`（非表示input）とその input/compositionend リスナーはスマホでは未使用になったが、PCや将来用に残置。
+
+## 2026-07-22 — 発砲音をリアル化
+
+- **作業内容**（`SND` の発砲音合成を刷新）:
+  - `punch(tier)` を実銃寄りの4要素構成に：①鋭いクラック（撃発の立ち上がり・超短ハイパスノイズ）②高→低へフィルター掃引する発砲ブラスト（ガス膨張の“ドッ”）③低域の胴鳴り（sine下降）④減衰する残響テール（遅延した低域ノイズ）。tier 0/1/2 で規模をエスカレート。
+  - `noise()` を拡張：`fq2`（フィルター周波数を fq→fq2 へ指数掃引）と `shape`（WaveShaper による軽いサチュレーション＝“ザラつき”）を追加。`shaperCurve()` ヘルパー新設。
+  - 発砲ごとにブラスト周波数を ±10% ランダム変化（`v()`）させ、機械的な繰り返し感を低減。
+  - `init()` に **DynamicsCompressor** を追加（master→comp→destination）。連射時のピークを抑えつつ密度・パンチを出す（threshold -14dB / ratio 4 / attack 2ms / release 120ms）。全効果音が経由。
+- **変更ファイル**: TypingShooter.html（`SND.init`/`SND.noise`/`SND.punch` ＋ `SND.shaperCurve` 追加）
+- **テスト**: `node --check` で構文OK。※ブラウザ音声の試聴は要実機確認（この環境では Web Audio 非対応）。他の効果音（select/miss/defeat/fanfare 等）もコンプレッサー経由になるが軽微。
+- **次にやること**: 実機で音量バランス確認（必要なら master gain .5 の再調整）。
+
 ## 2026-07-22 — GitHub Pages 公開
 
 - **作業内容**:
