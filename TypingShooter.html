@@ -43,6 +43,24 @@
   h2.head.bad{background:linear-gradient(180deg,#ff9a9e,#ff2e63);-webkit-background-clip:text;background-clip:text;color:transparent;}
   #hin{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:60%;height:30px;opacity:.01;border:none;font-size:16px;z-index:8;pointer-events:none;}
   .hint{font-size:12px;color:#8f84bd;}
+  /* 自作フリックキーボード(スマホ・日本語) */
+  #kbd{position:fixed;left:0;right:0;bottom:0;display:none;flex-direction:column;gap:5px;
+    padding:6px 6px calc(6px + env(safe-area-inset-bottom));box-sizing:border-box;z-index:9;
+    background:linear-gradient(180deg,#211a40,#150e2c);border-top:2px solid #3a2f66;touch-action:none;
+    box-shadow:0 -6px 24px rgba(0,0,0,.5);}
+  #kbdhint{height:22px;line-height:22px;text-align:center;font-size:14px;color:#bfb3e8;font-weight:700;}
+  #kbdhint b{color:#ffe259;font-size:19px;}
+  #kbd .krow{display:flex;gap:5px;justify-content:center;flex:1;}
+  #kbd .key{flex:1;max-width:150px;min-height:40px;display:flex;align-items:center;justify-content:center;
+    border-radius:12px;background:linear-gradient(180deg,#3c3466,#2a2350);color:#fff;
+    font-weight:800;font-size:min(6.5vw,26px);font-family:inherit;border:none;
+    box-shadow:0 3px 0 #1a1436;user-select:none;-webkit-user-select:none;position:relative;cursor:pointer;}
+  #kbd .key.act{background:linear-gradient(180deg,#ffe259,#ffa751);color:#3a1d00;box-shadow:0 1px 0 #b06a1f;transform:translateY(2px);}
+  #kbd .key.fn{background:linear-gradient(180deg,#7ee8fa,#59a9ff);color:#00234d;box-shadow:0 3px 0 #2a5fa8;font-size:min(4.6vw,18px);}
+  #kbd .key.del{background:linear-gradient(180deg,#ff9a9e,#e05563);color:#3a0000;box-shadow:0 3px 0 #7e2430;font-size:min(6vw,24px);}
+  #flickpop{position:fixed;display:none;transform:translate(-50%,-100%);z-index:10;pointer-events:none;
+    background:#ffe259;color:#3a1d00;padding:4px 14px;border-radius:10px;font-size:26px;font-weight:900;
+    box-shadow:0 4px 12px rgba(0,0,0,.5);}
 </style>
 </head>
 <body>
@@ -80,8 +98,10 @@
       　※えいごの文のとちゅうのスペースは、そのままにゅうりょくになる<br>
       <br>
       <b>📱 スマホ</b><br>
-      　てきをタップでロックオンして、そのままにゅうりょく<br>
-      　タイトルで「えいじタイピング / かなにゅうりょく」をえらべる<br>
+      　てきをタップでロックオン、がめん下のフリックキーボードでにゅうりょく<br>
+      　かなキーは タップ＝あ段 / 上下左右フリックで い う え お<br>
+      　「゛゜小」キーで だくてん・はんだくてん・小文字に へんかん(れい：は→ば→ぱ)<br>
+      　えいごモードは たんまつのキーボードでにゅうりょく<br>
       <br>
       <b>💡 ルール</b><br>
       　おだいの下のゲージが0になると てきがこうげき！<br>
@@ -102,6 +122,8 @@
 
   <input id="hin" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="typing input">
 </div></div>
+<div id="kbd"></div>
+<div id="flickpop"></div>
 <script>
 'use strict';
 /* ================= TypingShooter =================
@@ -411,12 +433,18 @@ const G = {
 
 function stageConf(n){
   return {
-    total: 5 + n*2,
+    total: 6 + n*2,
     simul: Math.min(2 + ((n-1)>>1), 6),
-    gauge: Math.max(9 - n*.5, 4) + (n<=2 ? 2.5 : 0),
+    // 序盤ほど攻撃までの猶予(ゲージ秒数)を長く。n<=3で大きめ、n<=5で少しボーナス
+    gauge: Math.max(10 - n*.5, 4.2) + (n<=3 ? 3.5 : n<=5 ? 1.5 : 0),
     pool: n<=2 ? 1 : n<=5 ? 2 : n<=8 ? 3 : 4,
-    bossPhrases: 2 + Math.floor(n/3),
-    bossGauge: Math.max(11 - n*.4, 5.5),
+    // 序盤は「短い文字数の敵をたくさん」出す。stage1は最大2かな、stage2は3かなまで(日本語のみ)
+    wordMax: n===1 ? 2 : n===2 ? 3 : 99,
+    bossPhrases: n<=2 ? 2 : 2 + Math.floor(n/3),
+    // ボスの攻撃猶予も序盤は大幅に長く
+    bossGauge: Math.max(13 - n*.5, 6) + (n<=3 ? 3.5 : 0),
+    // ボスのお題の重さ: 序盤は短い単語、中盤は長い単語、終盤で文章に
+    bossLevel: n<=2 ? 'short' : n<=4 ? 'mid' : 'long',
     hue: 220 + n*26,
   };
 }
@@ -424,10 +452,12 @@ function endlessConf(w){
   return {
     total: 4 + w,
     simul: Math.min(2 + (w>>1), 6),
-    gauge: Math.max(8.5 - w*.35, 3.5),
+    gauge: Math.max(8.5 - w*.35, 3.5) + (w<=3 ? 1.5 : 0),
     pool: Math.min(1 + ((w-1)/3|0), 4),
+    wordMax: 99,
     bossPhrases: Math.min(2 + (w/5|0), 6),
-    bossGauge: Math.max(9 - w*.2, 4.5),
+    bossGauge: Math.max(11 - w*.25, 5) + (w<=5 ? 2 : 0),
+    bossLevel: w<=5 ? 'mid' : 'long',
     hue: 190 + w*17,
   };
 }
@@ -441,7 +471,13 @@ function pickWord(){
   const pools = G.lang === 'en' ? WORDS_EN : WORDS_JP;
   let lvl = G.conf.pool;
   if(lvl > 1 && Math.random() < .3) lvl--;
-  const pool = pools[lvl-1];
+  let pool = pools[lvl-1];
+  // 序盤ステージは短い語だけに絞る(日本語=かな数。英語Lv1は既に短いので対象外)
+  const wm = G.conf.wordMax || 99;
+  if(G.lang === 'jp' && wm < 99){
+    const f = pool.filter(w => w.length <= wm);
+    if(f.length) pool = f;
+  }
   const used = new Set(G.enemies.map(e => e.word));
   const heads = new Set(G.enemies.map(e => firstKey(e.word)));
   for(let k = 0; k < 40; k++){
@@ -452,8 +488,12 @@ function pickWord(){
   }
   return pool[(Math.random()*pool.length)|0];
 }
-function pickBossPhrases(n){
-  const src = (G.lang === 'en' ? BOSS_EN : BOSS_JP).slice();
+function pickBossPhrases(n, level){
+  // 序盤ボスは文章ではなく単語を出題して難度を下げる
+  let src;
+  if(level === 'short') src = (G.lang === 'en' ? WORDS_EN : WORDS_JP)[1].slice(); // Lv2の単語
+  else if(level === 'mid') src = (G.lang === 'en' ? WORDS_EN : WORDS_JP)[2].slice(); // Lv3の単語
+  else src = (G.lang === 'en' ? BOSS_EN : BOSS_JP).slice(); // 文章
   for(let i = src.length-1; i > 0; i--){ const j = (Math.random()*(i+1))|0; [src[i],src[j]] = [src[j],src[i]]; }
   return src.slice(0, n);
 }
@@ -477,7 +517,7 @@ function spawnEnemy(){
   return true;
 }
 function spawnBoss(){
-  const phrases = pickBossPhrases(G.conf.bossPhrases);
+  const phrases = pickBossPhrases(G.conf.bossPhrases, G.conf.bossLevel);
   G.enemies.push({
     word: phrases[0], typer: makeTyper(phrases[0]), boss:true,
     phrases, phraseIdx:0, hp:phrases.length, hpMax:phrases.length,
@@ -500,7 +540,8 @@ function startStage(n){
   G.remaining = G.conf.total;
   G.scene = 'play';
   hideOverlays();
-  if(isTouch) hin.focus();
+  syncKbd();
+  if(isTouch && G.lang === 'en') hin.focus(); // 英語モードのみ純正キーボード
 }
 function startEndless(){
   G.mode = 'endless'; G.wave = 1; G.conf = endlessConf(1);
@@ -508,7 +549,8 @@ function startEndless(){
   G.remaining = G.conf.total;
   G.scene = 'play';
   hideOverlays();
-  if(isTouch) hin.focus();
+  syncKbd();
+  if(isTouch && G.lang === 'en') hin.focus(); // 英語モードのみ純正キーボード
 }
 function nextWaveEndless(){
   G.wave++;
@@ -793,10 +835,10 @@ function fmtTime(s){
 function toTitle(){
   G.scene = 'menu'; G.enemies = []; G.parts = []; G.sel = null;
   hideOverlays(); $id('ovTitle').classList.add('show');
-  hin.blur();
+  hin.blur(); syncKbd();
 }
 function showResult(){
-  G.scene = 'result';
+  G.scene = 'result'; syncKbd();
   const acc = (G.hits + G.miss) ? G.hits/(G.hits+G.miss) : 1;
   const rank = (acc >= .97 && G.hearts === 3) ? 'S' : acc >= .92 ? 'A' : acc >= .8 ? 'B' : 'C';
   const rcol = {S:'#ffe259',A:'#7ee8fa',B:'#9dff8a',C:'#cdbfff'}[rank];
@@ -825,7 +867,7 @@ function showResult(){
   $id('rTitle').onclick = () => { SND.click(); toTitle(); };
 }
 function showGameOver(){
-  G.scene = 'over';
+  G.scene = 'over'; syncKbd();
   const ov = $id('ovOver');
   const endless = G.mode === 'endless';
   ov.innerHTML = `
@@ -1134,14 +1176,16 @@ function drawLabel(e){
     otext('BOSS', W/2 - bw/2 - 34, 96, 16, '#ff5e62');
     return;
   }
-  const lx = Math.max(70, Math.min(W-70, e.x)), base = e.y - 40*e.scale;
+  // ロック中/マーカー中の敵は選択リング(半径52)と重なるため、お題を一段高く持ち上げて被りを防ぐ
+  const active = isSel || G.marker === e;
+  const lx = Math.max(70, Math.min(W-70, e.x)), base = e.y - (active ? 60 : 40)*e.scale;
   const ksize = isSel ? 20 : 17;
   const kp = e.typer.kanaProgress();
   if(isSel) typedText(e.word.slice(0,kp), e.word.slice(kp), lx, base-30, ksize);
   else otext(e.word, lx, base-30, ksize, 'rgba(255,255,255,.92)');
   if(romaMode){
     const rem = e.typer.remain(), typ = e.typer.typed;
-    if(isSel) typedText(typ, rem, lx, base-13, 13);
+    if(isSel) typedText(typ, rem, lx, base-13, 15);
     else otext(typ+rem, lx, base-13, 12, 'rgba(200,195,230,.85)');
   }
   const bw = 84, bx = lx-bw/2, by = romaMode ? base-4 : base-17;
@@ -1370,9 +1414,118 @@ cv.addEventListener('pointerdown', e => {
       else { G.sel = best; G.marker = best; G.locked = true; }
       SND.select();
     }
-    if(isTouch) hin.focus();
+    if(isTouch && G.lang === 'en') hin.focus(); // 日本語はフリックキーボードなので純正KBは出さない
   }
 });
+
+// ---------- 自作フリックキーボード(スマホ・日本語かな入力) ----------
+// 純正キーボードを出さずゲーム内で入力。濁点/半濁点/小文字は「お題認識型の保留」で確定する。
+const kbd = $id('kbd'), flickpop = $id('flickpop');
+let kbdHint = null;
+const V_DAKU = {か:'が',き:'ぎ',く:'ぐ',け:'げ',こ:'ご',さ:'ざ',し:'じ',す:'ず',せ:'ぜ',そ:'ぞ',
+  た:'だ',ち:'ぢ',つ:'づ',て:'で',と:'ど',は:'ば',ひ:'び',ふ:'ぶ',へ:'べ',ほ:'ぼ',う:'ゔ'};
+const V_HAN = {は:'ぱ',ひ:'ぴ',ふ:'ぷ',へ:'ぺ',ほ:'ぽ'};
+const V_SML = {あ:'ぁ',い:'ぃ',う:'ぅ',え:'ぇ',お:'ぉ',つ:'っ',や:'ゃ',ゆ:'ゅ',よ:'ょ',わ:'ゎ'};
+function variantsOf(k){
+  const a = [k];
+  if(V_DAKU[k]) a.push(V_DAKU[k]);
+  if(V_HAN[k]) a.push(V_HAN[k]);
+  if(V_SML[k]) a.push(V_SML[k]);
+  return a;
+}
+const KB_LAYOUT = [
+  [{t:'kana',m:['あ','い','う','え','お']},{t:'kana',m:['か','き','く','け','こ']},{t:'kana',m:['さ','し','す','せ','そ']}],
+  [{t:'kana',m:['た','ち','つ','て','と']},{t:'kana',m:['な','に','ぬ','ね','の']},{t:'kana',m:['は','ひ','ふ','へ','ほ']}],
+  [{t:'kana',m:['ま','み','む','め','も']},{t:'kana',m:['や','','ゆ','','よ']},{t:'kana',m:['ら','り','る','れ','ろ']}],
+  [{t:'fn',label:'゛゜小'},{t:'kana',m:['わ','を','ん','','']},{t:'del',label:'⌫'}],
+];
+// 保留(pending): 濁点変化を待っている確定前のかな
+let pendBase = null, pendVi = 0;
+function pendKana(){ return pendBase == null ? null : variantsOf(pendBase)[pendVi]; }
+function renderPend(){
+  if(!kbdHint) return;
+  if(pendBase == null) kbdHint.innerHTML = 'お題のかなをフリックでにゅうりょく';
+  else kbdHint.innerHTML = 'にゅうりょくちゅう <b>' + pendKana() + '</b> … ［゛゜小］でへんかん';
+}
+function pendClear(){ pendBase = null; pendVi = 0; renderPend(); }
+function pendFlush(){ if(pendBase != null){ const k = pendKana(); pendBase = null; pendVi = 0; renderPend(); handleChar(k); } }
+function expectedKanaSet(){
+  // いま打てば正解になる次のかなを集める(かなモード=PlainTyper前提)
+  const s = new Set();
+  const add = e => { const t = e.typer; if(t && t.word && !t.done() && t.idx < t.word.length) s.add(t.word[t.idx]); };
+  if(G.sel && targetable(G.sel)) add(G.sel);
+  else G.enemies.forEach(e => { if(targetable(e)) add(e); });
+  return s;
+}
+function selectKana(k){
+  pendFlush(); // 直前の保留を先に確定
+  const exp = expectedKanaSet();
+  if(exp.has(k)){ handleChar(k); return; }         // 基本かながそのまま正解 → 即発射
+  const vs = variantsOf(k);
+  if(vs.length > 1 && vs.some((v,i) => i > 0 && exp.has(v))){ pendBase = k; pendVi = 0; renderPend(); return; } // 濁点系が正解 → 保留
+  handleChar(k);                                    // どれにも当たらない → その場で判定(ミス/オートターゲット)
+}
+function cycleModifier(){
+  if(pendBase == null) return;
+  const vs = variantsOf(pendBase);
+  if(vs.length < 2) return;
+  pendVi = (pendVi + 1) % vs.length;
+  renderPend();
+  if(expectedKanaSet().has(pendKana())) pendFlush(); // 正解に到達したら即確定
+}
+function dirOf(dx, dy){
+  if(Math.hypot(dx,dy) < 22) return 0;
+  if(Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 1 : 3;
+  return dy < 0 ? 2 : 4;
+}
+function showFlick(el, m, d){
+  const c = m[d] || m[0];
+  const r = el.getBoundingClientRect();
+  flickpop.textContent = c;
+  flickpop.style.display = 'block';
+  flickpop.style.left = (r.left + r.width/2) + 'px';
+  flickpop.style.top = (r.top - 6) + 'px';
+}
+function hideFlick(){ flickpop.style.display = 'none'; }
+function buildKbd(){
+  kbd.innerHTML = '';
+  kbdHint = document.createElement('div'); kbdHint.id = 'kbdhint'; kbd.appendChild(kbdHint);
+  for(const row of KB_LAYOUT){
+    const rd = document.createElement('div'); rd.className = 'krow';
+    for(const key of row){
+      const el = document.createElement('button');
+      el.className = 'key' + (key.t === 'fn' ? ' fn' : key.t === 'del' ? ' del' : '');
+      el.textContent = key.t === 'kana' ? key.m[0] : key.label;
+      if(key.t === 'kana'){
+        let sx = 0, sy = 0, active = false;
+        el.addEventListener('pointerdown', e => { e.preventDefault(); active = true; sx = e.clientX; sy = e.clientY;
+          el.classList.add('act'); try{ el.setPointerCapture(e.pointerId); }catch(_){} showFlick(el, key.m, 0); SND.resume(); });
+        el.addEventListener('pointermove', e => { if(active) showFlick(el, key.m, dirOf(e.clientX-sx, e.clientY-sy)); });
+        el.addEventListener('pointerup', e => { if(!active) return; active = false; el.classList.remove('act'); hideFlick();
+          const d = dirOf(e.clientX-sx, e.clientY-sy); selectKana(key.m[d] || key.m[0]); });
+        el.addEventListener('pointercancel', () => { active = false; el.classList.remove('act'); hideFlick(); });
+      }else if(key.t === 'fn'){
+        el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('act'); SND.resume(); });
+        el.addEventListener('pointerup', () => { el.classList.remove('act'); cycleModifier(); });
+        el.addEventListener('pointercancel', () => el.classList.remove('act'));
+      }else{ // del: 保留のキャンセル
+        el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('act'); });
+        el.addEventListener('pointerup', () => { el.classList.remove('act'); pendClear(); });
+        el.addEventListener('pointercancel', () => el.classList.remove('act'));
+      }
+      rd.appendChild(el);
+    }
+    kbd.appendChild(rd);
+  }
+  renderPend();
+}
+function kbdActive(){ return isTouch && G.lang === 'jp' && G.scene === 'play'; }
+function syncKbd(){
+  const on = kbdActive();
+  kbd.style.display = on ? 'flex' : 'none';
+  if(on){ hin.blur(); } else { pendClear(); }
+  resize();
+}
 
 function bindToggle(idA, idB, fn){
   $id(idA).onclick = () => { SND.click(); $id(idA).classList.add('sel'); $id(idB).classList.remove('sel'); fn(true); };
@@ -1380,24 +1533,33 @@ function bindToggle(idA, idB, fn){
 }
 bindToggle('tgJp','tgEn', jp => {
   G.lang = jp ? 'jp' : 'en';
-  $id('imRow').style.display = (jp && isTouch) ? 'flex' : 'none';
+  if(isTouch) G.kanaMode = jp; // スマホの日本語は自作フリックキーボード(かな入力)固定
 });
 bindToggle('tgRoma','tgKana', roma => { G.kanaMode = !roma; });
-if(isTouch) $id('imRow').style.display = 'flex';
+// スマホは日本語=フリックかな入力に統一するため、旧「スマホ入力」トグルは非表示のまま
+if(isTouch) G.kanaMode = true; // 既定は日本語モードなので、かな入力で開始
 $id('btStage').onclick = () => { SND.click(); openStageSel(); };
 $id('btEndless').onclick = () => { SND.click(); startEndless(); };
 $id('btBack1').onclick = () => { SND.click(); toTitle(); };
 $id('btHelp').onclick = () => { SND.click(); hideOverlays(); $id('ovHelp').classList.add('show'); };
 $id('btHelpClose').onclick = () => { SND.click(); hideOverlays(); $id('ovTitle').classList.add('show'); };
 
+const wrap = $id('wrap');
 function resize(){
-  const s = Math.min((innerWidth-12)/W, (innerHeight-12)/H);
-  cv.style.width = (W*s)+'px';
-  cv.style.height = (H*s)+'px';
-  box.style.width = (W*s)+'px';
-  box.style.height = (H*s)+'px';
+  // フリックキーボード表示中はその高さを確保し、ゲームを上側に寄せる
+  const kbOn = typeof kbdActive === 'function' && kbdActive();
+  const kbH = kbOn ? Math.min(innerHeight*.44, innerWidth*.78, 340) : 0;
+  kbd.style.height = kbH ? kbH + 'px' : '';
+  const availH = innerHeight - kbH - 12;
+  const s = Math.min((innerWidth-12)/W, availH/H);
+  cv.style.width = box.style.width = (W*s)+'px';
+  cv.style.height = box.style.height = (H*s)+'px';
+  if(kbOn){ wrap.style.alignItems = 'flex-start'; box.style.marginTop = Math.max(6, (availH - H*s)/2) + 'px'; }
+  else { wrap.style.alignItems = 'center'; box.style.marginTop = '0'; }
 }
 window.addEventListener('resize', resize);
+if(window.visualViewport) visualViewport.addEventListener('resize', resize);
+if(isTouch) buildKbd();
 resize();
 
 let last = performance.now();
