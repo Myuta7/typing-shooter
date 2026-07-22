@@ -17,3 +17,12 @@
   - `npx playwright install chromium` 後に `npm test` を実機で通す（未実行）。
   - YouTube Playable の SDK 要件（サイズ上限・SDK タグ・CTA コールバック等）への適合。
   - 進行状況の永続化（現状メモリ保持のみ）。
+
+## 2026-07-22 — GitHub Pages 公開
+
+- **作業内容**:
+  - ルートURLでゲームが開けるよう、`TypingShooter.html` へリダイレクトする `index.html` を追加（本体HTMLは無変更）。
+  - リポジトリを **public** に変更し、GitHub Pages（main / ルート）を有効化。ビルド完了・HTTP 200 を確認。
+  - 公開URL: **https://myuta7.github.io/typing-shooter/**
+- **変更ファイル**: （新規）index.html
+- **次にやること**: 実機（スマホ）での動作確認、YouTube Playable SDK 対応。
